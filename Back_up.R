@@ -159,6 +159,39 @@ Sample2 <- left_join(Sample1_c, LOS_newborns, by = c("patient_id_child", "case_i
   relocate(admission_postnatal_neonatal, discharge_postnatal_neonatal, admission_neo, admission_neo_n, .after = last_col()) %>% # .after = Destination of columns selected by
   rename(admission_MUKI = admission_postnatal_neonatal, discharge_MUKI = discharge_postnatal_neonatal) 
 
+Sample2 <- Sample2 %>% 
+  mutate(Age_in_hours = LOS_neonatal / 60) %>% 
+  mutate(Age_in_hours = as.numeric((Age_in_hours))) %>% 
+  relocate(LOS_neonatal, Age_in_hours, .after = last_col())
+
+table(is.na(Sample2$admission_MUKI))
+# FALSE  TRUE 
+# 8172   292
+
+Check <- Sample2 %>% 
+  filter(is.na(Sample2$admission_MUKI))
+# Conclusion: not transferred from labour ward to the postnatal unit directly after birth
+
+Sample2 <- Sample2 %>% 
+  filter(!is.na(admission_MUKI)) # 8172
+
+NICU_adm2 <- Sample2 %>% 
+  select(patient_id_child, case_id_child, admission_neo, admission_neo_n, Age_in_hours) %>% 
+  filter(admission_neo %in% "Yes") %>% 
+  distinct() # 192 cases where admitted from postnatal unit to the NICU 
+
+# Percentages Admission NICU
+Sample2 %>%
+  summarise(total = n(), 
+            admitted = sum(admission_neo %in% "Yes"), 
+            percent = (admitted / total) * 100)
+# total admitted percent
+# <int>    <int>   <dbl>
+# 8172      196    2.40
+
+# 8. Sample 3 - Diagnoses -------------------------------------------------
+Sample3 <- left_join(Sample2, Diagnose_red2_corr, by = c("patient_id_child" = "patient_id", "case_id_child" = "case_id")) %>% 
+  select(- DIG_DATE_TS, - DIG_RANK, - DIG_TARGET_SITE, - DIA_BK, - ICD_groups)
 
 # 6. Movement data --------------------------------------------------------
 summary(as.factor(Move_stat2f$pat_type))
