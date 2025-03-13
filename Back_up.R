@@ -1,10 +1,15 @@
-
 # 1. Install packages ------------------------------------------------------
 # install.packages("tidyverse") 
 library(tidyverse)
 # install.packages("feather")
 library(feather)
 # library(ggplot2)
+# install.packages("padr")
+library(padr)
+library(feather)
+# library(ggplot2)
+# install.packages("lubridate")
+library(lubridate)
 
 # 2. Import data sets --------------------------------------------------------
 # 2.a Data sets
@@ -18,7 +23,6 @@ load(file = "I:/Verwaltung/MaNtiS/03_Prozessierte_Daten/gestational_age_2024-10-
 
 # 2.b Pseudonymised data sets: Consent 
 Consent <- read_feather("I:/Verwaltung/MaNtiS/02_Pseudonymisierte_Daten/Consent_pseud.feather")
-
 
 # 3. Birth_corr2 ------------------------------------
 summary(Birth_corr2)
@@ -193,35 +197,7 @@ Sample2 %>%
 Sample3 <- left_join(Sample2, Diagnose_red2_corr, by = c("patient_id_child" = "patient_id", "case_id_child" = "case_id")) %>% 
   select(- DIG_DATE_TS, - DIG_RANK, - DIG_TARGET_SITE, - DIA_BK, - ICD_groups)
 
-### Birth_corr2, (Movement data) LOS, Consent, GA and Sample
-# 1. Install packages ------------------------------------------------------
-# install.packages("tidyverse") 
-library(tidyverse)
-# install.packages("feather")
-library(feather)
-# library(ggplot2)
-# install.packages("padr")
-library(padr)
-library(feather)
-# library(ggplot2)
-# install.packages("lubridate")
-library(lubridate)
-
-# 2. Import data sets --------------------------------------------------------
-# 2.a Data sets
-load(file = "I:/Verwaltung/MaNtiS/03_Prozessierte_Daten/Birth_corr2.RData")
-load(file = "I:/Verwaltung/MaNtiS/03_Prozessierte_Daten/Diagnose_red2_corr.RData")
-load(file = "I:/Verwaltung/MaNtiS/03_Prozessierte_Daten/DRG_red1.RData")
-load(file = "I:/Verwaltung/MaNtiS/03_Prozessierte_Daten/Move_stat2f.RData")
-load(file = "I:/Verwaltung/MaNtiS/03_Prozessierte_Daten/Pat_info.RData")
-load(file = "I:/Verwaltung/MaNtiS/03_Prozessierte_Daten/Procedure_red2_corr.RData")
-load(file = "I:/Verwaltung/MaNtiS/03_Prozessierte_Daten/gestational_age_2024-10-01.RData")
-load(file = "I:/Verwaltung/MaNtiS/03_Prozessierte_Daten/LOS_newborns_2025-03-06.RData")
-
-# 2.b Pseudonymised data sets: Consent 
-Consent <- read_feather("I:/Verwaltung/MaNtiS/02_Pseudonymisierte_Daten/Consent_pseud.feather")
-
-
+## New
 # 3. Birth information ----------------------------------------------------
 # 3.1 Birth_corr2 ------------------------------------
 summary(Birth_corr2)
