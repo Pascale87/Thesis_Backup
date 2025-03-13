@@ -193,6 +193,596 @@ Sample2 %>%
 Sample3 <- left_join(Sample2, Diagnose_red2_corr, by = c("patient_id_child" = "patient_id", "case_id_child" = "case_id")) %>% 
   select(- DIG_DATE_TS, - DIG_RANK, - DIG_TARGET_SITE, - DIA_BK, - ICD_groups)
 
+### Birth_corr2, (Movement data) LOS, Consent, GA and Sample
+# 1. Install packages ------------------------------------------------------
+# install.packages("tidyverse") 
+library(tidyverse)
+# install.packages("feather")
+library(feather)
+# library(ggplot2)
+# install.packages("padr")
+library(padr)
+library(feather)
+# library(ggplot2)
+# install.packages("lubridate")
+library(lubridate)
+
+# 2. Import data sets --------------------------------------------------------
+# 2.a Data sets
+load(file = "I:/Verwaltung/MaNtiS/03_Prozessierte_Daten/Birth_corr2.RData")
+load(file = "I:/Verwaltung/MaNtiS/03_Prozessierte_Daten/Diagnose_red2_corr.RData")
+load(file = "I:/Verwaltung/MaNtiS/03_Prozessierte_Daten/DRG_red1.RData")
+load(file = "I:/Verwaltung/MaNtiS/03_Prozessierte_Daten/Move_stat2f.RData")
+load(file = "I:/Verwaltung/MaNtiS/03_Prozessierte_Daten/Pat_info.RData")
+load(file = "I:/Verwaltung/MaNtiS/03_Prozessierte_Daten/Procedure_red2_corr.RData")
+load(file = "I:/Verwaltung/MaNtiS/03_Prozessierte_Daten/gestational_age_2024-10-01.RData")
+load(file = "I:/Verwaltung/MaNtiS/03_Prozessierte_Daten/LOS_newborns_2025-03-06.RData")
+
+# 2.b Pseudonymised data sets: Consent 
+Consent <- read_feather("I:/Verwaltung/MaNtiS/02_Pseudonymisierte_Daten/Consent_pseud.feather")
+
+
+# 3. Birth information ----------------------------------------------------
+# 3.1 Birth_corr2 ------------------------------------
+summary(Birth_corr2)
+
+## Time frame check (Inclusion criteria 1)
+summary(Birth_corr2$CBIS_BIRTH_DATE_TS)
+# Min.                       1st Qu.                    Median                     Mean                       3rd Qu.                    Max. 
+# "2019-01-01 01:26:00.0000" "2019-12-22 02:57:00.0000" "2021-01-06 00:12:30.0000" "2020-12-31 05:41:56.7116" "2021-12-25 17:35:00.0000" "2022-12-31 16:17:00.0000" 
+# Conclusion: no exclusions
+
+## patient_id_child
+sum(is.na(Birth_corr2$patient_id_child)) # there are 2 NAs
+## case_id_child
+sum(is.na(Birth_corr2$case_id_child)) # there are 2 NAs
+na_case <- Birth_corr2 %>%
+  filter(is.na(case_id_child)) # stillbirths 
+
+Birth_corr2 <- Birth_corr2 %>%
+  filter(!is.na(case_id_child)) # excluded cases without case_id, 10776 (-2)
+
+## CBIS_BIRTH_DATE_TS (Birth date and time)
+summary(Birth_corr2$CBIS_BIRTH_DATE_TS)
+#Min.                    1st Qu.                     Median                       Mean                    3rd Qu.                       Max. 
+#"2019-01-01 01:26:00.0000" "2019-12-21 18:54:45.0000" "2021-01-05 15:17:00.0000" "2020-12-30 15:21:19.3272" "2021-12-24 07:42:30.0000" "2022-12-31 16:17:00.0000" 
+# from 2019-01-01 01:26:00. to 2022-12-31 16:17:00
+sum(is.na(Birth_corr2$CBIS_BIRTH_DATE_TS)) # no NAs
+
+## CBIS_MULTIPLE_BIRTH_FLAG (multiple birth (several children), 1 if yes, otherwise 0)
+summary(as.factor(Birth_corr2$CBIS_MULTIPLE_BIRTH_FLAG))
+# 0      1 
+# 10143   633 
+# there are no NAs
+
+## Stillbirths
+table(Birth_corr2$CBIS_STILLBIRTH_FLAG) # 77
+
+## CBIS_CONGENITAL_MALFORMATION (congenital malformation (1 = yes, 0 = no, (-1) = unknown))
+table(Birth_corr2$CBIS_CONGENITAL_MALFORMATION)
+# -1     0     1 
+# 73 10083   620 
+# there are no NAs
+
+## CBIS_MODE (codes in (1,7) - exact decryption still unclear))
+table(Birth_corr2$CBIS_MODE) 
+# 1    2    3    4    6 n.a. 
+# 5409  841 1066  103   48 3309 
+## not relevant
+
+## CBIS_WEIGHT
+summary(Birth_corr2$CBIS_WEIGHT)
+# Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
+# 135    2930    3300    3219    3650    5900      44 
+
+# hist(Birth_corr2$CBIS_WEIGHT, main = "Histogram Weight Newborns (2019-2022)", 
+#      xlab = "weight (g)", ylab = "Freq")
+# # all newborns are here included, also the premature
+# (Summ_weight <- Birth_corr2 %>%
+#     summarize(mean_weight = mean(CBIS_WEIGHT, na.rm = TRUE),
+#               min_weight = min(CBIS_WEIGHT, na.rm = TRUE),
+#               max_weight = max(CBIS_WEIGHT, na.rm = TRUE)))
+# #         mean_weight min_weight max_weight
+# #           <dbl>      <dbl>      <dbl>
+# #  1       3219.        135       5900
+
+## CBIS_BODY_SIZE
+summary(Birth_corr2$CBIS_BODY_SIZE)
+# Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
+# 19.00   48.00   50.00   49.64   52.00   63.00      45 
+
+# hist(Birth_corr2$CBIS_BODY_SIZE, main = "Histogram Body Size Newborns (2019-2022)", 
+#      xlab = "size (cm)", ylab = "Freq")
+# (Summ_size_body <- Birth_corr2 %>%
+#     summarize(mean_size_body = mean(CBIS_BODY_SIZE, na.rm = TRUE),
+#               min_size_body = min(CBIS_BODY_SIZE, na.rm = TRUE),
+#               max_size_body = max(CBIS_BODY_SIZE, na.rm = TRUE)))
+# #       mean_size min_weight max_weight
+# #         <dbl>      <dbl>      <dbl>
+# #  1      49.6         19         63
+
+## CBIS_HEAD_SIZE
+summary(Birth_corr2$CBIS_HEAD_SIZE)
+# Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
+# 12.00   33.00   34.00   34.02   35.00   53.00      57 
+
+# (Summ_size_head <- Birth_corr2 %>%
+#     summarize(mean_size_head = mean(CBIS_HEAD_SIZE, na.rm = TRUE),
+#               min_size_head = min(CBIS_HEAD_SIZE, na.rm = TRUE),
+#               max_size_head = max(CBIS_HEAD_SIZE, na.rm = TRUE)))
+# #             mean_size_head min_weight_head max_weight_head
+# #               <dbl>           <dbl>           <dbl>
+# #  1           34.0              12              53
+
+## CBIS_APGAR_SCORE_0Min
+summary(Birth_corr2$CBIS_APGAR_SCORE_0MIN)
+# Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
+# 0.000   8.000   9.000   8.005   9.000  10.000    2597 
+
+## CBIS_APGAR_SCORE_5Min
+summary(Birth_corr2$CBIS_APGAR_SCORE_5MIN)
+# Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
+# 0.000   9.000   9.000   9.077  10.000  10.000    2605 
+
+## CBIS_APGAR_SCORE_10Min
+summary(Birth_corr2$CBIS_APGAR_SCORE_10MIN)
+# Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
+# 0.000  10.000  10.000   9.599  10.000  10.000    2605 
+
+## CBIS_COMMENT
+summary(as.factor(Birth_corr2$CBIS_COMMENT)) 
+# various specified comments, but not always -> variable will be deleted as not necessary and there are also person related information
+
+## CBIS_CREATE_DATE (Date of creation of record) -> not needed, will be deleted
+## CBIS_CREATE_DAY_BK (Date of creation of record in format YYYYMMDD) -> not needed, will be deleted
+## CBIS_UPDATE_DATE (Date of update of record) -> not needed, will be deleted
+## CBIS_UPDATE_DAY_BK (Date of update of record in format YYYYMMDD) -> not needed, will be deleted
+
+# Check for id /cases
+Check_id <- Birth_corr2 %>% 
+  select(patient_id_child, case_id_child) %>% 
+  distinct
+
+Check_pat_id <- Birth_corr2 %>% 
+  select(patient_id_child) %>% 
+  distinct
+## 10776 obs
+
+Check_case_id <- Birth_corr2 %>% 
+  select(case_id_child) %>% 
+  distinct
+
+# Check for duplicates
+sum(duplicated(Birth_corr2)) # no duplicates
+
+# 3.2 Gestational age data set (for inclusion criteria 3)------------------------------------------
+# 10348 obs of 7 variables
+sum(is.na(gestational_age_final))  # no NAs
+summary(gestational_age_final$Weeks_LPM)
+# Min.   1st Qu.  Median  Mean   3rd Qu.  Max. 
+# 18.00   38.00   39.00   38.38   40.00   43.00 
+summary(gestational_age_final$gestational_age_total_days)
+# Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+# 128.0   268.0   276.0   271.6   283.0   303.0
+
+# 3.3 Consent denial cases (Lookup1) ----------------------------------------------------
+# Exclude cases with consent denial (mother & child)
+summary(as.factor(Consent$CON_VALUE))
+# Ja    n.a.  Nein 
+# 5188   36   1364 
+
+# Consent-checks mother and child
+Consent_check <- left_join(Birth_corr2, Consent, by = c("patient_id_mother" = "patient_id"))
+Consent_check2 <- left_join(Birth_corr2, Consent, by = c("patient_id_child" = "patient_id"))
+
+Consent_exclude_mother <- Consent_check %>%
+  filter(CON_VALUE %in% "Nein") %>% 
+  select(patient_id_mother, case_id_mother) # 1381
+
+Consent_exclude_child <- Consent_check2 %>%
+  filter(CON_VALUE %in% "Nein") %>% 
+  select(patient_id_child, case_id_child) # 82 
+
+Lookup1 <- Birth_corr2 %>%
+  filter(!case_id_mother %in% Consent_exclude_mother$case_id_mother) %>%
+  filter(!case_id_child %in% Consent_exclude_child$case_id_child)  # 9342
+
+## Only child
+# Consent_check <- left_join(Birth_corr2, Consent, by = c("patient_id_child" = "patient_id")) # 10776
+# summary(as.factor(Consent_check$CON_VALUE))
+# #   Ja  Nein  NA's 
+# #   376   82  10318 
+# 
+# ## All newborn cases with consent "Nein" must be excluded
+# Lookup1 <- Consent_check %>% 
+#   filter(!CON_VALUE %in% "Nein") %>% 
+#   select(!c(CON_VALID_FROM_DATE, CON_VALID_TO_DATE))  # 10694 (-82 obs)
+# 
+# summary(as.factor(Lookup1$CON_VALUE))
+# # Ja  NA's 
+# # 376 10318
+# 
+# # Check id
+# Lookup1_case_id <- Lookup1 %>% 
+#   select(case_id_child) %>% 
+#   distinct() # 10694
+
+# 3.4 Sample selection ------------------------------------------
+# To bring together the GA data set with Birth_corr2 data (Lookup1)
+Birth_corr2_m <- left_join(Lookup1, gestational_age_final, by = c("patient_id_mother", "case_id_mother", "patient_id_child", "case_id_child"), relationship = "many-to-many")
+# 10694
+summary(Birth_corr2_m) # overview: Gestational age there are now 426 NAs -> most of them amb./tagesklinik
+Birth_corr2_m <- Birth_corr2_m %>% 
+  filter(!is.na(gestational_age_total_days))
+table(duplicated(Birth_corr2_m))  # check for duplicates
+#FALSE
+#10268   
+
+# 3.4.1 >= 37 GA ---------------------------------------------------------------
+# Inclusion criteria 3
+# Select only variable of interest
+Birth_corr2_m <- Birth_corr2_m %>%
+  select(patient_id_mother, patient_id_child, case_id_child, CBIS_BIRTH_DATE_TS, CBIS_BIRTH_DAY_BK, CBIS_BIRTH_TIM_BK, CBIS_WEIGHT, CBIS_WEIGHT_UNIT, CBIS_STILLBIRTH_FLAG, CBIS_CONGENITAL_MALFORMATION,
+         admission_neo, admission_neo_n, Weeks_LPM, Days_LPM, gestational_age_total_days) #- CON_VALUE
+
+# Lookup2 <- Birth_corr2_m %>%
+#   select(patient_id_child, case_id_child, CBIS_BIRTH_DATE_TS, CBIS_BIRTH_DAY_BK, CBIS_BIRTH_TIM_BK, CBIS_WEIGHT, CBIS_WEIGHT_UNIT, CBIS_STILLBIRTH_FLAG, CBIS_CONGENITAL_MALFORMATION,
+#          CBIS_BODY_SIZE, CBIS_BODY_SIZE_UNIT, CBIS_HEAD_SIZE, CBIS_HEAD_SIZE_UNIT, admission_neo, admission_neo_n, Weeks_LPM, Days_LPM, gestational_age_total_days, CON_VALUE) 
+
+# Create data set with newborns >= 37 GA (259 weeks)
+Sample1 <- Birth_corr2_m %>% 
+  filter(gestational_age_total_days >= "259") # 8990 
+
+# 3.4.1.1 Birth weight ---------------------------------------------------------
+summary(Sample1$CBIS_WEIGHT)
+Check_weight <- Sample1 %>% 
+  filter(CBIS_WEIGHT < 2500) # 264: these cases are to be excluded
+Sample1 <- Sample1 %>% 
+  filter(CBIS_WEIGHT >= 2500) # 8726
+
+# 3.4.2 Stillbirth and Malformations --------------------------------------
+table(Sample1$CBIS_STILLBIRTH_FLAG) 
+# 0      1 
+# 8718   8
+
+## CBIS_CONGENITAL_MALFORMATION (congenital malformation (1 = yes, 0 = no, (-1) = unknown))
+table(Sample1$CBIS_CONGENITAL_MALFORMATION)
+# -1    0    1 
+# 20 8237  469 
+
+Sample1 <- Sample1 %>% 
+  filter(CBIS_STILLBIRTH_FLAG == 0, CBIS_CONGENITAL_MALFORMATION == 0) # 8229
+
+# Percentages
+Birth_corr2_m %>%
+  summarise(total = n(),
+            GA_week37 = sum(gestational_age_total_days >= 259),
+            percent = (GA_week37 / total) * 100)
+# <int>     <int>   <dbl>
+#1 10268    8990    87.6
+
+# Admission neo (just a between step for control, inclusion criteria 2 is actually missing)
+Adm_nicu <- Sample1 %>% 
+  filter(admission_neo %in% "Yes") # 407
+Sample1 %>%
+  summarise(total = n(), 
+            admitted = sum(admission_neo %in% "Yes"), 
+            percent = (admitted / total) * 100)
+# total admitted percent
+# <int>    <int>  <dbl>
+#1 8229    407    4.95
+
+rm(Lookup1, Lookup1_case_id, Check_case_id, Check_id, Check_weight, Consent_check, na_case)
+
+### Next steps:
+# - Merge Sample1 with Movement data set (LOS data) 
+# - (Merging with icds)
+# - Merging with temp data, Meona data
+
+# 3.4.3 Newborn transfer -----------------------------------------------------
+# LOS data (extracted from Movement data, only newborns admitted to the Muki and discharged from Muki)
+## Overview
+summary(LOS_newborns) # 9268
+table(is.na(LOS_newborns$patient_id_child)) # no NAs
+table(is.na(LOS_newborns$case_id_child)) # no NAs
+table(is.na(LOS_newborns$LOS_neonatal)) # no NAs
+
+# Merging with Sample1, with variables selection and arrangement and renaming variables
+Sample2 <- left_join(Sample1, LOS_newborns, by = c("patient_id_child", "case_id_child")) %>% 
+  select(- CBIS_STILLBIRTH_FLAG, - CBIS_CONGENITAL_MALFORMATION) %>% 
+  relocate(admission_postnatal_neonatal, discharge_postnatal_neonatal, admission_neo, admission_neo_n, .after = last_col()) %>% # .after = Destination of columns selected by
+  rename(admission_MUKI = admission_postnatal_neonatal, discharge_MUKI = discharge_postnatal_neonatal, LOS = LOS_neonatal) 
+
+# attr: Object Attributes, Description: Get or set specific attributes of an object.: attr(x, which) <- value
+Sample2 <- Sample2 %>% 
+  mutate(LOS = LOS/60)
+attr(Sample2$LOS, "units") <- "h"
+
+# Check admission_Muki
+table(is.na(Sample2$admission_MUKI))
+# FALSE  TRUE 
+# 7953   276
+## Cases where newborns were not transferred from labour ward to the postnatal unit (to other unit within USB, readmission, birth centre or home) -> to have been excluded
+
+Sample2 <- Sample2 %>% 
+  filter(!is.na(admission_MUKI)) # 7953
+
+table(Sample2$admission_neo)
+# No  Yes 
+# 7771  182 
+
+# Adm_nicu2 <- Sample2 %>% 
+#   select(patient_id_child, case_id_child, admission_neo, admission_neo_n) %>% 
+#   filter(admission_neo %in% "Yes") %>% 
+#   distinct() # 182 cases where admitted from postnatal unit to the NICU 
+
+# 3.4.4 Diagnoses -------------------------------------------------
+Sample3 <- left_join(Sample2, Diagnose_red2_corr, by = c("patient_id_child" = "patient_id", "case_id_child" = "case_id")) %>% 
+  select(- DIG_DATE_TS, - DIG_RANK, - DIG_TARGET_SITE, - DIA_BK, - ICD_groups)
+
+table(Sample3$ICD_labels)
+
+## Diagnoses
+# 1. Hypoglycaemia: P70.0, P70.1, P70.4
+# 2. Hyperbilirubinaemia: P55.0, P55.1, P58.1, P59.8., P59.9
+# 3. hypothermia: D55.0, P80.8, P80.9, P81.8, P81.9
+## RF
+# 1. Hypoglycaemia: Z83.3, > 4500g
+# 2. Hyperbilirubinaemia: 
+# 3. hypothermia: 
+
+Sample3 <- Sample3 %>% 
+  mutate(High_weight = if_else(CBIS_WEIGHT >= 4500, "Yes", "No"))
+
+# ICD-10 codes
+Hypoglyc_diag_codes <- c("P70.0", "P70.1", "P70.4")
+Hyperbili_diag_codes <- c("P55.0", "P55.1", "P58.1", "P59.8", "P59.9")  
+Hypotherm_diag_codes <- c("D55.0", "P80.8", "P80.9", "P81.8", "P81.9")
+
+# RF 
+Hypoglyc_risk_codes <- c("Z83.3")  
+
+Sample3_p <- Sample3 %>%
+  group_by(patient_id_child, case_id_child) %>%
+  summarise(Dia_hypoglyc = any(Dia_hypoglyc),
+            Dia_hyperbili = any(Dia_hyperbili),
+            Dia_hypotherm = any(Dia_hypotherm),
+            Risk_hypogly = any(Risk_hypogly),
+            Risk_hypogly_w = any(Risk_hypogly_w)) %>%
+  mutate(Hypoglyc_yn = if_else(Dia_hypoglyc, "Yes", "No"),
+         Hyperbili_yn = if_else(Dia_hyperbili, "Yes", "No"),
+         Hypotherm_yn = if_else(Dia_hypotherm, "Yes", "No"),
+         Risk_hypoglyrisk = Risk_hypogly, Risk_hypogly_w,
+         Diagnosis_count = Dia_hypoglyc + Dia_hyperbili + Dia_hypotherm,
+         Diagnosis_combi = case_when(
+           Diagnosis_count == 0 ~ "None",
+           Diagnosis_count == 1 & Dia_hypoglyc == TRUE ~ "Hypoglyc_only",
+           Diagnosis_count == 1 & Dia_hyperbili == TRUE ~ "Hyperbili_only",
+           Diagnosis_count == 1 & Dia_hypotherm == TRUE ~ "Hypotherm_only",
+           Diagnosis_count == 2 & Dia_hypoglyc == TRUE & Dia_hyperbili == TRUE ~ "Hypoglyc_Hyperbili",
+           Diagnosis_count == 2 & Dia_hypoglyc == TRUE & Dia_hypotherm == TRUE ~ "Hypoglyc_Hypothermia",
+           Diagnosis_count == 2 & Dia_hyperbili == TRUE & Dia_hypotherm == TRUE ~ "Hyperbili_Hypothermia",
+           Diagnosis_count == 3 ~ "All_diagnoses",
+           TRUE ~ "Unknown"))
+
+
+
+
+
+
+
+
+# # Percentages Admission NICU
+# Sample2 %>%
+#   summarise(total = n(), 
+#             admitted = sum(admission_neo %in% "Yes"), 
+#             percent = (admitted / total) * 100)
+# # total admitted percent
+# # <int>    <int>   <dbl>
+# # 8172      196    2.40
+
+
+
+
+
+
+
+
+
+
+
+# Code not needed ---------------------------------------------------------
+# 
+# ### Movement data old part
+# summary(as.factor(Move_stat2f$pat_type))
+# # newborn  parent 
+# # 35049   47705 
+# 
+# Move_Newborn <- Move_stat2f %>%
+#   filter(pat_type %in% "newborn") %>% 
+#   filter(MOV_START_DATE_TS > "2019-01-01 00:00:00") %>%
+#   filter(MOV_START_DATE_TS < "2023-01-01 00:00:00")     # select only newborns within time frame, 33711 obs
+# 
+# # Overview CAS_TYPE and Reasons
+# summary(as.factor(Move_Newborn$CAS_TYPE))
+# # Amb./Tageskli.      Stationär 
+# # 1009                32702
+# ## 280 via MUKI/SSA
+# 
+# summary(as.factor(Move_Newborn$MOV_REASON1))
+# # Altersh./a.Inst andere/intÜbert  anderes Spital angemeldet,gepl      Geburt Krank/Pfegeheim      n.a.       Notfall Reha.Kli.and.B.       unbekannt  Verlegung <24h      verstorben 
+# # 2             456            1512             574                     10769               1       10861         23               2              12              48             114 
+# # Zuhause 
+# # 9337 
+# 
+# summary(as.factor(Move_Newborn$MOV_REASON2))
+# # amb.Beh.(HA,Pol amb.Pfl.(Spitex and. KH, Spital andere,N.Akut-F         anderes  geheilt/k.Beh.            n.a. Reha. (amb./st) stat.Beh./Pfleg       unbekannt      verstorben         Zuhause 
+# #                          9041             231             415           10780              61              51           10861           1921              11             114             115 
+# # Zuhause/Spitex 
+# # 109
+# summary(as.factor(Move_Newborn$ORG))
+# # Chirurgie 4.1     FK Geburtsabteilung   FK Gyn. Bettenstation      FK Mutter und Kind FK Schwangerenabteilung          IMC 
+# # 2                 12421                     9                       21265                      13                       1 
+# 
+# # 1. To exclude: cases verstorben (MOV_REASON1), and ambulante Geburt (CAS_TYPE)
+# # Move_Newborn2 <- Move_Newborn %>% 
+# #   filter(!CAS_TYPE %in% "Amb./Tageskli.") # - 1035 cases (excluded ambulant births)
+# Move_Newborn2 <- Move_Newborn %>%
+#   filter(!MOV_REASON1 %in% "verstorben") # - 114 cases
+# ## With excluded cases: 33597 obs
+# 
+# # 2. Select newborns that were first transferred from labour ward to Muki
+# ## Geburtsabteilung: 00002030
+# ## Mutter und Kind Abtl.: 00005010
+# 
+# # Trans_muki <- Move_Newborn2 %>%
+# #   filter(unit_id %in% c("00002030", "00005010")) # select only relevant units, 33573 (-24)
+# # summary(as.factor(Trans_muki$ORG))
+# 
+# ## Aim: to have one row with all relevant information
+# 
+# # Check for missing data
+# summary(Move_Newborn)
+# sum(is.na(Move_Newborn$patient_id)) # 0
+# sum(is.na(Move_Newborn$case_id)) # 0 
+# sum(is.na(Move_Newborn$unit_id)) # 0
+# sum(is.na(Move_Newborn$MOV_REASON1)) # 0
+# sum(is.na(Move_Newborn$CAS_TYPE)) # 0
+# 
+# 
+# Lookup_move <- Move_Newborn2 %>%
+#   filter(unit_id %in% c("00002030", "00005010")) %>%
+#   select(patient_id, case_id, ORG, unit_id, MOV_START_DATE_TS, MOV_END_DATE_TS, MOV_KIND, MOV_REASON1) %>%
+#   distinct()
+# 
+# ## Identify transfer labour ward and mother and child unit (first approach)
+# 
+# # spread(Trans_muki, key = ORG, value = unit_id)
+# # -> recommended to switch to pivot_wider(), which is easier to use, more featureful, and still under active development.
+# # pivot_wider = widens data, increasing the number of columns and decreasing the number of rows
+# 
+# # names_from, values_from = A pair of arguments describing which column (or columns) to get the name of the output column (names_from), and which
+# # column (or columns) to get the cell values from (values_from).
+# 
+# Trans_muki <- Lookup_move %>%
+#   pivot_wider(
+#     names_from = ORG, # FK Geburtsabteilung & FK Mutter und Kind
+#     values_from = unit_id) # 00002030 & 00005010
+# 
+# ## Concl.: this creates columns for each unique value in the ORG column. With multiple entries I think is not suitable. 
+# 
+# ## Identify transfer labour ward and mother and child unit (second approach)
+# 
+# Trans_muki2 <- Lookup_move %>% 
+#   group_by(patient_id, case_id) %>% 
+#   mutate(Gebs = any(unit_id == "00002030"), 
+#          Muki = any(unit_id == "00005010")) # -> False/True; to find a way, to identify the direction of transfers Gebs --> Muki
+# 
+# Trans_muki3 <- Trans_muki2 %>% 
+#   group_by(patient_id, case_id) %>% 
+#   mutate(Transfer_Gebs_Muki = any(Gebs & lead(Muki))) # "next" (lead()) values in a vector; NAs by Transfer_Gebs_Muki when Gebs True and Muki false
+# 
+# Trans_muki4 <- Lookup_move %>%
+#   group_by(patient_id, case_id) %>%
+#   mutate(Gebs = any(unit_id == "00002030"), 
+#          Muki = any(unit_id == "00005010"), 
+#          Transfer_Gebs_Muki = any(unit_id == "00002030" & 
+#                                     lead(unit_id) == "00005010")) # NAs by Transfer_Gebs_Muki when Gebs True and Muki false again. 
+# 
+# Trans_muki5 <- Lookup_move %>%
+#   group_by(patient_id, case_id) %>%
+#   mutate(
+#     Gebs = any(unit_id == "00002030"), 
+#     Muki = any(unit_id == "00005010"), 
+#     Unit_next = lead(unit_id), # create a next column with next unit, any and lead in one line was the problem
+#     Direct_transfer = (unit_id == "00002030" & Unit_next == "00005010"),  # give the direction
+#     Transfer_Gebs_Muki = any(Direct_transfer, na.rm = TRUE))
+# ## Here we see if a newborn as transferred from gebs to muki (Transfer_Gebs_Muki True or not); but there are sometimes multiple entries per patient 
+# 
+# Trans_muki6 <- Lookup_move %>%
+#   group_by(patient_id, case_id) %>%
+#   mutate(
+#     Gebs = any(unit_id == "00002030"), 
+#     Muki = any(unit_id == "00005010"), 
+#     Unit_next = lead(unit_id),
+#     Direct_transfer = (unit_id == "00002030" & Unit_next == "00005010"),  
+#     Transfer_Gebs_Muki = any(Direct_transfer, na.rm = TRUE)) %>% 
+#   ungroup() %>% # because of group_by!
+#   select(patient_id, case_id, Gebs, Muki, Transfer_Gebs_Muki) %>% 
+#   distinct() # to get one row of each case
+# 
+# table(Trans_muki6$Transfer_Gebs_Muki)
+# # FALSE  TRUE 
+# # 2158   9281
+# ## Concl.: I have now 11439 cases, 9281 cases are transfers from Gebs to Muki directly. The other newborns were either not born at USB or these are readmission 
+# 
+
+# # Merging Sample1 (cases with consent or NA, >=37 GA)
+# Sample3 <- left_join(Sample2, Trans_muki6, by = c("patient_id_child" = "patient_id", "case_id_child" = "case_id")) %>% 
+#   select(- Gebs, -Muki)
+# 
+# table(Sample2$Transfer_Gebs_Muki)
+# # FALSE  TRUE 
+# # 300  8163 
+# table(is.na(Sample2$Transfer_Gebs_Muki))
+# # FALSE  TRUE 
+# # 8463     1 --> patient 83022??!
+# ### Movement data old part
+# summary(as.factor(Move_stat2f$pat_type))
+# # newborn  parent 
+# # 35049   47705 
+# 
+# Move_Newborn <- Move_stat2f %>%
+#   filter(pat_type %in% "newborn") %>% 
+#   filter(MOV_START_DATE_TS > "2019-01-01 00:00:00") %>%
+#   filter(MOV_START_DATE_TS < "2023-01-01 00:00:00")     # select only newborns within time frame, 33711 obs
+# 
+# # Overview CAS_TYPE and Reasons
+# summary(as.factor(Move_Newborn$CAS_TYPE))
+# # Amb./Tageskli.      Stationär 
+# # 1009                32702
+# ## 280 via MUKI/SSA
+# 
+# summary(as.factor(Move_Newborn$MOV_REASON1))
+# # Altersh./a.Inst andere/intÜbert  anderes Spital angemeldet,gepl      Geburt Krank/Pfegeheim      n.a.       Notfall Reha.Kli.and.B.       unbekannt  Verlegung <24h      verstorben 
+# # 2             456            1512             574                     10769               1       10861         23               2              12              48             114 
+# # Zuhause 
+# # 9337 
+# 
+# summary(as.factor(Move_Newborn$MOV_REASON2))
+# # amb.Beh.(HA,Pol amb.Pfl.(Spitex and. KH, Spital andere,N.Akut-F         anderes  geheilt/k.Beh.            n.a. Reha. (amb./st) stat.Beh./Pfleg       unbekannt      verstorben         Zuhause 
+# #                          9041             231             415           10780              61              51           10861           1921              11             114             115 
+# # Zuhause/Spitex 
+# # 109
+# summary(as.factor(Move_Newborn$ORG))
+# # Chirurgie 4.1     FK Geburtsabteilung   FK Gyn. Bettenstation      FK Mutter und Kind FK Schwangerenabteilung          IMC 
+# # 2                 12421                     9                       21265                      13                       1 
+# 
+# # 1. To exclude: cases verstorben (MOV_REASON1), and ambulante Geburt (CAS_TYPE)
+# # Move_Newborn2 <- Move_Newborn %>% 
+# #   filter(!CAS_TYPE %in% "Amb./Tageskli.") # - 1035 cases (excluded ambulant births)
+# Move_Newborn2 <- Move_Newborn %>%
+#   filter(!MOV_REASON1 %in% "verstorben") # - 114 cases
+# ## With excluded cases: 33597 obs
+# 
+# # 2. Select newborns that were first transferred from labour ward to Muki
+# ## Geburtsabteilung: 00002030
+# ## Mutter und Kind Abtl.: 00005010
+# 
+# # Trans_muki <- Move_Newborn2 %>%
+# #   filter(unit_id %in% c("00002030", "00005010")) # select only relevant units, 33573 (-24)
+# # summary(as.factor(Trans_muki$ORG))
+# 
+# ## Aim: to have one row with all relevant information
+# 
+# # Check for missing data
+# summary(Move_Newborn)
+# sum(is.na(Move_Newborn$patient_id)) # 0
+# sum(is.na(Move_Newborn$case_id)) # 0 
+# sum(is.na(Move_Newborn$unit_id)) # 0
+# sum(is.na(Move_Newborn$MOV_REASON1)) # 0
+# sum(is.na(Move_Newborn$CAS_TYPE)) # 0
+
 # 6. Movement data --------------------------------------------------------
 summary(as.factor(Move_stat2f$pat_type))
 # newborn  parent 
