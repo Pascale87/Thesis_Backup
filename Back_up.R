@@ -227,7 +227,7 @@ table(duplicated(Birth_corr2_m))  # check for duplicates
 # Inclusion criteria 3
 # Select only variable of interest
 Birth_corr2_m <- Birth_corr2_m %>%
-  select(patient_id_mother, case_id_mother, patient_id_child, case_id_child, CBIS_BIRTH_DATE_TS, CBIS_BIRTH_DAY_BK, CBIS_BIRTH_TIM_BK, CBIS_WEIGHT, CBIS_WEIGHT_UNIT,
+  select(patient_id_mother, case_id_mother, patient_id_child, case_id_child, CBIS_BIRTH_DATE_TS, CBIS_WEIGHT, CBIS_WEIGHT_UNIT,
          CBIS_STILLBIRTH_FLAG, CBIS_CONGENITAL_MALFORMATION, Weeks_LPM, Days_LPM, gestational_age_total_days, admission_neo, admission_neo_n) #- CON_VALUE
 
 # Lookup2 <- Birth_corr2_m %>%
@@ -239,7 +239,8 @@ Sample1 <- Birth_corr2_m %>%
   filter(gestational_age_total_days >= "259") # 7802 
 
 # 3.4.1.1 Birth weight ---------------------------------------------------------
-summary(Sample1$CBIS_WEIGHT) # there are cases with less than 2500 g, to exclude
+## To exclude newborns which have a birth weight < 2500g 
+summary(Sample1$CBIS_WEIGHT) # there are cases with less than 2500 g
 Check_weight <- Sample1 %>% 
   filter(CBIS_WEIGHT < 2500) # 228: these cases are to be excluded
 Sample1 <- Sample1 %>% 
@@ -255,8 +256,17 @@ table(Sample1$CBIS_CONGENITAL_MALFORMATION)
 # -1    0    1 
 # 18 7152  404 
 
+Check_stillbirth <- Sample1 %>% 
+  filter(CBIS_STILLBIRTH_FLAG == 1, CBIS_CONGENITAL_MALFORMATION == 1) # 0 cases with both conditions
+
 Sample1 <- Sample1 %>% 
-  filter(CBIS_STILLBIRTH_FLAG == 0, CBIS_CONGENITAL_MALFORMATION == 0) # 7146
+  filter(CBIS_STILLBIRTH_FLAG == 0, CBIS_CONGENITAL_MALFORMATION == 0) 
+# Sample1 <- Sample1 %>% 
+#   filter(CBIS_STILLBIRTH_FLAG == 0, CBIS_CONGENITAL_MALFORMATION == 0 | CBIS_CONGENITAL_MALFORMATION == -1)
+# excluded conditions stillbirths and malformation
+# -> with malformation "unknown" n= 7164
+# -> without malformation "unknown" n= 7146
+
 
 # Percentages
 Birth_corr2_m %>%
@@ -310,10 +320,25 @@ attr(Sample2$LOS, "units") <- "h"
 table(is.na(Sample2$admission_MUKI))
 # FALSE  TRUE 
 # 6903   243 
-## Cases where newborns were not transferred from labour ward to the postnatal unit (to other unit within USB, readmission NICU, birth centre or home) -> to have been excluded
 
+# Check cases not transferred directly from the labour ward to the postnatal unit
+Sample2_isna_transfer <- Sample2 %>% 
+  filter(is.na(admission_MUKI)) 
+
+Move_newborn <- left_join(Sample2_isna_transfer, Move_stat2f, by = c("patient_id_child" = "patient_id", "case_id_child" = "case_id")) %>% 
+  select(patient_id_child, case_id_child, CBIS_BIRTH_DATE_TS, admission_neo, admission_neo_n, MOV_START_DATE_TS, MOV_END_DATE_TS, CAS_TYPE, MOV_KIND, MOV_TYPE,
+         MOV_REASON1, MOV_REASON2, unit_id, ORG)
+## Reasons: n= 3 Home, n= 19 Birth centre, n= 3 inpatient births, n= 196 adm. NICU, n= 2 transfer other unit not postnatal unit (SS, Chirurgie) --> missing 20 cases?
+
+Labour_dis <- Move_newborn %>%
+  filter(unit_id %in% "00002030", MOV_TYPE == "Entlassung") # 237
+Labour_dis_nicu <- Labour_dis %>% 
+  filter(admission_neo %in% "Yes") # 196
+
+
+# Dataset cleaned without no transfer to neonatal unit
 Sample2 <- Sample2 %>% 
-  filter(!is.na(admission_MUKI)) 
+  filter(!is.na(admission_MUKI)) # 6903
 
 table(Sample2$admission_neo)
 # No    Yes 
@@ -342,7 +367,7 @@ Check_id_sample2_mo2 <- Sample2 %>%
 # sum(is.na(Sample2$patient_id_mother)) # 0
 # sum(is.na(Sample2$case_id_mother)) # 0
 
-rm(Check_id_sample2, Check_id_sample2_child, Check_id_sample2_mo, Check_id_sample2_child, Check_id_sample2_child2, Check_id_sample2_mo2)
+rm(Check_id_sample2_child, Check_id_sample2_child2, Check_id_sample2_mo, Check_id_sample2_mo2, Sample1, Labour_dis, Labour_dis_nicu)
 
 
 # 3.4.4 Diagnoses -------------------------------------------------
@@ -352,72 +377,96 @@ Sample3 <- left_join(Sample2, Diagnose_red2_corr, by = c("patient_id_child" = "p
 table(Sample3$ICD_labels)
 
 ## Diagnoses
-# 1. Hypoglycaemia: P70.0, P70.1, P70.4
-# 2. Hyperbilirubinaemia: P55.0, P55.1, P58.1, P59.8., P59.9
-# 3. hypothermia: D55.0, P80.8, P80.9, P81.8, P81.9
-## RF
-# 1. Hypoglycaemia: Z83.3, > 4500g
-# 2. Hyperbilirubinaemia: 
-# 3. hypothermia: 
-
-Sample3 <- Sample3 %>% 
-  mutate(High_weight = if_else(CBIS_WEIGHT >= 4500, "Yes", "No"))
+# 1. Hypoglycaemia: P70.4, E16.2
+# 2. Hyperbilirubinaemia: P58.1, P58.8, P59.0, P59.8., P59.9
+# 3. Hypothermia: P80.8, P80.9, P81.8, P81.9
 
 # ICD-10 codes
-Hypoglyc_diag_codes <- c("P70.0", "P70.1", "P70.4")
-Hyperbili_diag_codes <- c("P55.0", "P55.1", "P58.1", "P59.8", "P59.9")  
-Hypotherm_diag_codes <- c("D55.0", "P80.8", "P80.9", "P81.8", "P81.9")
+Hypoglycaemia_codes <- c("P70.4", "E16.2")
+Hyperbilirubinaemia_codes <- c("P58.1", "P58.8", "P59.0", "P59.8", "P59.9")
+Hypothermia_codes <- c("P80.8", "P80.9", "P81.8", "P81.9")
 
-# RF 
-Hypoglyc_risk_codes <- c("Z83.3")  
+## Create with the icd-10 codes new variable per H to check
+Sample3_dia <- Sample3 %>%
+  mutate(Dia_hypoglyc = DIA_NK %in% Hypoglycaemia_codes,
+         Dia_hyperbili = DIA_NK %in% Hyperbilirubinaemia_codes,
+         Dia_hypotherm = DIA_NK %in% Hypothermia_codes)
 
-Sample3_p <- Sample3 %>%
-  group_by(patient_id_child, case_id_child) %>%
-  summarise(Dia_hypoglyc = any(Dia_hypoglyc),
+# Bring together the diagnoses information per patient
+Sample3_dia <- Sample3_dia %>%
+  group_by(patient_id_child, case_id_child) %>% # because of multiple rows
+  summarise(Dia_hypoglyc = any(Dia_hypoglyc), # check if at least one of the rows contains the value TRUE for the related diagnosis
             Dia_hyperbili = any(Dia_hyperbili),
-            Dia_hypotherm = any(Dia_hypotherm),
-            Risk_hypogly = any(Risk_hypogly),
-            Risk_hypogly_w = any(Risk_hypogly_w)) %>%
+            Dia_hypotherm = any(Dia_hypotherm)) %>%
   mutate(Hypoglyc_yn = if_else(Dia_hypoglyc, "Yes", "No"),
          Hyperbili_yn = if_else(Dia_hyperbili, "Yes", "No"),
          Hypotherm_yn = if_else(Dia_hypotherm, "Yes", "No"),
-         Risk_hypoglyrisk = Risk_hypogly, Risk_hypogly_w,
-         Diagnosis_count = Dia_hypoglyc + Dia_hyperbili + Dia_hypotherm,
-         Diagnosis_combi = case_when(
-           Diagnosis_count == 0 ~ "None",
-           Diagnosis_count == 1 & Dia_hypoglyc == TRUE ~ "Hypoglyc_only",
-           Diagnosis_count == 1 & Dia_hyperbili == TRUE ~ "Hyperbili_only",
-           Diagnosis_count == 1 & Dia_hypotherm == TRUE ~ "Hypotherm_only",
-           Diagnosis_count == 2 & Dia_hypoglyc == TRUE & Dia_hyperbili == TRUE ~ "Hypoglyc_Hyperbili",
-           Diagnosis_count == 2 & Dia_hypoglyc == TRUE & Dia_hypotherm == TRUE ~ "Hypoglyc_Hypothermia",
-           Diagnosis_count == 2 & Dia_hyperbili == TRUE & Dia_hypotherm == TRUE ~ "Hyperbili_Hypothermia",
-           Diagnosis_count == 3 ~ "All_diagnoses",
-           TRUE ~ "Unknown"))
+         Diag_count = Dia_hypoglyc + Dia_hyperbili + Dia_hypotherm,
+         Diagnoses_HHH = case_when(
+           Diag_count == 0 ~ "None",
+           Diag_count == 1 & Dia_hypoglyc == TRUE ~ "Hypoglyc_only",
+           Diag_count == 1 & Dia_hyperbili == TRUE ~ "Hyperbili_only",
+           Diag_count == 1 & Dia_hypotherm == TRUE ~ "Hypotherm_only",
+           Diag_count == 2 & Dia_hypoglyc == TRUE & Dia_hyperbili == TRUE ~ "Hypoglyc_Hyperbili",
+           Diag_count == 2 & Dia_hypoglyc == TRUE & Dia_hypotherm == TRUE ~ "Hypoglyc_Hypothermia",
+           Diag_count == 2 & Dia_hyperbili == TRUE & Dia_hypotherm == TRUE ~ "Hyperbili_Hypothermia",
+           Diag_count == 3 ~ "All_diagnoses", TRUE ~ "Unknown")) # "Unknown" to cover all cases- should not be the case here, but is good practice for case_when
+
+table(Sample3_dia$Diagnoses_HHH)
+# Hyperbili_Hypothermia   Hyperbili_only  Hypoglyc_Hyperbili  Hypoglyc_Hypothermia  Hypoglyc_only   Hypotherm_only       None 
+# 2                       42              1                    29                   184             164                  6481 
+
+# Bring together Sample3_dia and Sample3
+Sample4 <- left_join(Sample3, Sample3_dia, by = c("patient_id_child", "case_id_child")) %>% 
+  select(- Dia_hypoglyc, - Dia_hyperbili, - Dia_hypotherm, - Hypoglyc_yn, - Hyperbili_yn, - Hypotherm_yn, - Diag_count) # %>% 
+  # distinct(patient_id_child, .keep_all = TRUE) -> all other diagnoses are no more visible, not as this stage
 
 
-# 3.4.5 Other Risk factors ------------------------------------------------
-# 3.4.5.1 Maternal age ----------------------------------------------------
-Mother_data <- left_join(Sample2, Pat_info, by = c("patient_id_mother" = "patient_id", "case_id_mother" = "case_id")) %>% 
+# 3.4.5 Risk factors HHH ------------------------------------------------------
+
+# 1. Hypoglycaemia: P70.0, P70.1, Z83.3, birth weight > 4500g, hyperbilirubinaemia, Parity
+# 2. Hyperbilirubinaemia: P55.0, P55.1, D55.0, race/ethnicity, maternal age, GDM/DM, hypoglycaemia
+# 3. Hypothermia: hypoglycaemia, Race/ethnicity, age of mother, parity
+
+#  3.4.5.1 Birth weight >4500g --------------------------------
+Sample4 <- Sample4 %>% 
+  mutate(RF_weight = if_else(CBIS_WEIGHT >= 4500, "Yes", "No"))
+
+# 3.4.5.2 Parity ----------------------------------------------------------
+
+RF_Parity <- parity1 %>% 
+  mutate(RF_parity = if_else(Anzahl_vorausg_LebGeb == 0, "Primi", "Multi"))
+
+## Overview
+# summary(parity1)
+# table(parity1$Anzahl_vorausg_SS) # 0-12
+# table(parity1$Anzahl_vorausg_LebGeb) # 0-7
+# table(parity1$Anzahl_fehl_Geb) # 0-12
+# table(parity1$Anzahl_Interruptio) # 0-10
+
+Sample4_p <- left_join(Sample4, RF_Parity, by = c("patient_id_child", "case_id_child" = "case_id", "patient_id_mother", "case_id_mother")) %>% 
+  select(-Anzahl_vorausg_SS, -Anzahl_vorausg_LebGeb, -Anzahl_fehl_Geb, -Anzahl_Interruptio)
+
+# 3.4.5.3 Maternal age ----------------------------------------------------
+Mother_data <- left_join(Sample4_p, Pat_info, by = c("patient_id_mother" = "patient_id", "case_id_mother" = "case_id"), relationship = "many-to-many") %>% 
   select(patient_id_mother, case_id_mother, PAT_BIRTH_DATE, CBIS_BIRTH_DATE_TS, PAT_CITIZENSHIP_COUNTRY) # %>% 
   # distinct(patient_id_mother, .keep_all = TRUE)
 
 Mother_data <- Mother_data %>%
-  distinct(patient_id_mother, case_id_mother, .keep_all = TRUE) # remove duplicates
+  distinct(patient_id_mother, case_id_mother, .keep_all = TRUE) # remove duplicates, 6849
 
 Mother_data <- Mother_data %>% 
   mutate(Birth_date = as.Date(CBIS_BIRTH_DATE_TS)) %>%
-  mutate(Maternal_age = interval(start = PAT_BIRTH_DATE, end = Birth_date) / duration(n = 1, unit = "years"))
-summary(Mother_data$Maternal_age)
+  mutate(RF_Maternal_age = interval(start = PAT_BIRTH_DATE, end = Birth_date) / duration(n = 1, unit = "years"))
+summary(Mother_data$RF_Maternal_age)
 # Min. 1st Qu.  Median    Mean   3rd Qu.  Max. 
 # 14.55   30.48   33.70   33.50   36.86   52.37
 
 Underage <- Mother_data %>% 
-  filter(Maternal_age < 18) # 10 cases
+  filter(RF_Maternal_age < 18) # 10 cases
 
-Sample3 <- left_join(Sample2, Mother_data, by = c("patient_id_mother", "case_id_mother")) %>% 
+Sample5 <- left_join(Sample4_p, Mother_data, by = c("patient_id_mother", "case_id_mother")) %>% 
   select(- Birth_date, - PAT_BIRTH_DATE)
-
-summary(Sample3$Maternal_age) # no NAs
 
 
 # Mother_data <- Mother_data %>%
@@ -436,7 +485,7 @@ summary(Sample3$Maternal_age) # no NAs
 # summary(Sample5$Maternal_age) # NAs= 603
 
 
-# 3.4.5.2 Race/Ethnicity --------------------------------------------------
+# 3.4.5.4 Race/Ethnicity --------------------------------------------------
 ## From Luisa to start
 Countries_FOS <- readxl::read_excel( "I:/Verwaltung/MaNtiS/01_Rohdaten/FOS_countries_categories.xlsx")
 Countries_FOS <- janitor::clean_names(Countries_FOS) ## to clean column names
@@ -464,48 +513,23 @@ Countries2b <- Countries2 %>%
     TRUE ~ "Unknown")) # when NA then unknown
 
 # Combine with Sample
-Sample4 <- left_join(Sample3, Countries2b, by = "PAT_CITIZENSHIP_COUNTRY") %>% 
+Sample6 <- left_join(Sample5, Countries2b, by = "PAT_CITIZENSHIP_COUNTRY") %>% 
   select(- PAT_CITIZENSHIP_COUNTRY, - pat_citizenship_country_new, -landercode_bfs_code_des_pays_ofs_codice_del_paese_ust, 
          -iso2, -iso3, -region_region_regione, - kontinent_continent_continente) 
 
-table(Sample4$Country)
+Sample6b <- left_join(Sample5, Countries2b, by = "PAT_CITIZENSHIP_COUNTRY") %>% 
+  select(- PAT_CITIZENSHIP_COUNTRY, - pat_citizenship_country_new, -landercode_bfs_code_des_pays_ofs_codice_del_paese_ust, 
+         -iso2, -iso3, -region_region_regione, - kontinent_continent_continente) %>% 
+  distinct(patient_id_child, .keep_all = TRUE)
+
+table(Sample6b$Country)
 # Africa     America      Asia      Europe     Oceania   Switzerland     Unknown 
 # 263         187         508        2960          17        2951           17 
 
-round(prop.table(table(as.factor(Sample4$Country))) * 100, 1)
+round(prop.table(table(as.factor(Sample6b$Country))) * 100, 1)
 # Africa     America     Asia      Europe     Oceania   Switzerland   Unknown 
 # 3.8         2.7         7.4       42.9         0.2        42.7         0.2
 
-
-# 3.4.5.3 Parity ----------------------------------------------------------
-
-Parity_cat <- parity1 %>% 
-  mutate(Cat_parity = if_else(Anzahl_vorausg_LebGeb == 0, "Primi", "Multi"))
-
-## Overview
-# summary(parity1)
-# table(parity1$Anzahl_vorausg_SS) # 0-12
-# table(parity1$Anzahl_vorausg_LebGeb) # 0-7
-# table(parity1$Anzahl_fehl_Geb) # 0-12
-# table(parity1$Anzahl_Interruptio) # 0-10
-
-Sample5 <- left_join(Sample4, Parity_cat, by = c("patient_id_child", "case_id_child" = "case_id", "patient_id_mother", "case_id_mother")) %>% 
-  select(-Anzahl_vorausg_SS, -Anzahl_vorausg_LebGeb, -Anzahl_fehl_Geb, -Anzahl_Interruptio)
-
-Sample5 <- Sample5 %>% 
-  select(- patient_id_mother.x, -case_id_mother.x, -patient_id_mother.y, -case_id_mother.y, Anzahl_vorausg_SS.x,
-         Anzahl_vorausg_LebGeb.x, Anzahl_fehl_Geb.x, Anzahl_Interruptio.x, Anzahl_fehl_Geb.x)
-
-
-
-# # Percentages Admission NICU
-# Sample2 %>%
-#   summarise(total = n(), 
-#             admitted = sum(admission_neo %in% "Yes"), 
-#             percent = (admitted / total) * 100)
-# # total admitted percent
-# # <int>    <int>   <dbl>
-# # 8172      196    2.40
 
 
 # Code not needed ---------------------------------------------------------
