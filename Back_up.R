@@ -1460,17 +1460,23 @@ Sample_Birth_corr %>%
 # <int>    <int>   <dbl>
 # 9046      528    5.84
 
-# 2. Import data set Temp data --------------------------------------------------------
+# 1. Install packages ------------------------------------------------------
+# install.packages("tidyverse") 
+library(tidyverse)
+# install.packages("feather")
+
+# 2. Import data sets --------------------------------------------------------
 Temp_data <- read_feather("I:/Verwaltung/MaNtiS/02_Pseudonymisierte_Daten/Temp_pseud.feather")
+
 
 # 3. Overview Temp data --------------------------------------------------------
 summary(Temp_data) # 211808
 sum(is.na(Temp_data$patient_id)) # there are no NAs
 sum(is.na(Temp_data$case_id)) # 15040
 
-Temp_data2 <- left_join(Sample2, Temp_data, by = c("patient_id_child" = "patient_id", "case_id_child" = "case_id")) 
-## Conclusion: 81809 obs; 
-## Sample2: from data merged from Birth_corr2, Consent yes/NA and GA >= 37, Trans_muki6
+Temp_data2 <- left_join(Sample2, Temp_data, by = c("patient_id_child" = "patient_id", "case_id_child" = "case_id")) %>% 
+  select(patient_id_child, case_id_child, VVMO_NUMERIC_VALUE, VVMO_MEASURE_DATE_TS)
+# 67726 obs
 
 summary(Temp_data2)
 
@@ -1478,29 +1484,15 @@ summary(Temp_data2)
 sum(is.na(Temp_data2$patient_id_child)) # 0
 sum(is.na(Temp_data2$case_id_child)) # 0
 
-# Malformation
-# summary(as.factor(Temp_data2$CBIS_CONGENITAL_MALFORMATION))
-# # -1     0     1 
-# # 214 81821  4603 
-
 # VVMO_NUMERIC_VALUE
 summary(Temp_data2$VVMO_NUMERIC_VALUE)
-# Min.   1st Qu.  Median  Mean   3rd  Qu. Max.    NA's 
-# 27.10   36.90   37.10   37.08   37.30   38.90   234  
-## Conclusion: NAs were mainly due to transfers to the neo, readmission
-
-# VVMO_MEASURE_DATE_TS
-summary(Temp_data2$VVMO_MEASURE_DATE_TS)
-# Min.                    1st Qu.                     Median                       Mean                    3rd Qu.                       Max.                       NA's 
-# "2019-01-01 04:45:00.0000" "2019-12-21 01:44:00.0000" "2021-01-12 05:45:00.0000" "2020-12-28 19:57:50.8432" "2021-12-17 00:28:30.0000" "2022-12-31 08:56:00.0000"                      "234"  
-
-## VIP_BK, VVMO_TEXT_VALU - these variables are not needed
-# Temp_data2 <- Temp_data2 %>%
-#   select(-VIP_BK, -VVMO_TEXT_VALUE)
+# Min.   1st Qu.  Median  Mean   3rd Qu.  Max.    NA's 
+# 27.10   36.90   37.10   37.08   37.30   38.90   13  
+## Conclusion: NAs were mainly due to outpatient births and transfers to the Nicu on the same day of birth -> readmission
 
 # To exclude missing data in temperature records
 Temp_data2 <- Temp_data2 %>% 
-  filter(!is.na(VVMO_NUMERIC_VALUE)) # 81575
+  filter(!is.na(VVMO_NUMERIC_VALUE)) # 67713
 
 summary(Temp_data2)
 
@@ -1508,52 +1500,48 @@ summary(Temp_data2)
 Check_pat_id_temp <- Temp_data2 %>% 
   select(patient_id_child) %>% 
   distinct
-## 8230 
+## 6890 
 
 Check_case_id_temp <- Temp_data2 %>% 
   select(case_id_child) %>% 
   distinct
-## 8230
+## 6890
 
-# Identify cases with neo admission
-Temp_adm_neo <- Temp_data2 %>% 
-  filter(admission_neo %in% "Yes") # 1494 newborns were admitted to the neo
-
-Temp_data2 %>%
-  summarise(total = n(), # n() gives the current group size
-            admitted = sum(admission_neo %in% "Yes"),  # sum returns the sum of all the values present in its arguments
-            percent = (admitted / total) * 100)
-# total admitted percent
-# <int>    <int>   <dbl>
-#1 81575     1494    1.83
+# Identify cases with neo admission -> old
+# Temp_adm_neo <- Temp_data2 %>% 
+#   filter(admission_neo %in% "Yes") 
+# Temp_data2 %>%
+#   summarise(total = n(), # n() gives the current group size
+#             admitted = sum(admission_neo %in% "Yes"),  # sum returns the sum of all the values present in its arguments
+#             percent = (admitted / total) * 100)
+# # total admitted percent
+# # <int>    <int>   <dbl>
+# #1 81575     1494    1.83
 
 Temp_low <- Temp_data2 %>%
-  filter(VVMO_NUMERIC_VALUE < 36.5) # 2804
+  filter(VVMO_NUMERIC_VALUE < 36.5) # 2210
 
-Temp_low_adm <- Temp_data2 %>%
-  filter(VVMO_NUMERIC_VALUE < 36.5, admission_neo %in% "Yes") # 101
-
-Temp_low_adm2 <- Temp_data2 %>%
-  filter(VVMO_NUMERIC_VALUE < 36.5, admission_neo %in% "Yes") %>% 
-  select(patient_id_child) %>%
-  distinct() # 60 
+# Temp_low_adm <- Temp_data2 %>%
+#   filter(VVMO_NUMERIC_VALUE < 36.5, admission_neo %in% "Yes")
+# Temp_low_adm2 <- Temp_data2 %>%
+#   filter(VVMO_NUMERIC_VALUE < 36.5, admission_neo %in% "Yes") %>% 
+#   select(patient_id_child) %>%
+#   distinct() 
 
 # 4. Operationalisation --------------------------------------------------
 # CATEGORISATION
 Temp_data_cat <- Temp_data2 %>%
-  select(patient_id_child, case_id_child, CBIS_BIRTH_DATE_TS, CON_VALUE, admission_neo, admission_neo_n, Weeks_LPM, 
-         gestational_age_total_days, VVMO_NUMERIC_VALUE, VVMO_MEASURE_DATE_TS, Transfer_Gebs_Muki) %>% 
+  select(patient_id_child, case_id_child, VVMO_NUMERIC_VALUE, VVMO_MEASURE_DATE_TS) %>% 
   group_by(patient_id_child, case_id_child) %>%
   mutate(Hypothermia_category = case_when(
     VVMO_NUMERIC_VALUE >= 36.5 ~ "Normotherm",
-    VVMO_NUMERIC_VALUE >= 36.0 & VVMO_NUMERIC_VALUE < 36.5 ~ "Mild", 
-    VVMO_NUMERIC_VALUE < 36.0 ~ "Moderate_Severe")) %>% 
-  mutate(cat = if_else(Hypothermia_category %in% "Normotherm", 0,
-                       if_else(Hypothermia_category %in% "Mild", 1, 2))) %>% 
-  mutate(Sum_Category = sum(cat)) %>% 
-  mutate(Hypothermia_cat = if_else(Sum_Category == 0, "Norm",
-                                   if_else(Sum_Category == 1, "Mild", "Moderate_Severe")))
-
+      VVMO_NUMERIC_VALUE >= 36.0 & VVMO_NUMERIC_VALUE < 36.5 ~ "Mild", 
+        VVMO_NUMERIC_VALUE < 36.0 ~ "Moderate_Severe")) %>% 
+          mutate(cat = if_else(Hypothermia_category %in% "Normotherm", 0,
+                          if_else(Hypothermia_category %in% "Mild", 1, 2))) %>% 
+           mutate(Sum_Category = sum(cat)) %>% 
+             mutate(Hypothermia_cat = if_else(Sum_Category == 0, "Norm",
+                                      if_else(Sum_Category == 1, "Mild", "Moderate_Severe")))
 
 ## Explanation: Temperatur-Kategorien in numerische Variable zu überführen, damit man sie später einfacher zusammenfassen kann
 # Normotherm → 0
@@ -1567,69 +1555,94 @@ Temp_data_cat <- Temp_data2 %>%
 Temp_data_cat2 <- Temp_data_cat %>%
   group_by(patient_id_child, case_id_child) %>%
   select(patient_id_child, case_id_child, VVMO_NUMERIC_VALUE, VVMO_MEASURE_DATE_TS, Hypothermia_cat) %>% 
-  distinct(patient_id_child, .keep_all = TRUE) # 8680; .keep.all = keep all variables in .data. If a combination of ... is not distinct, this keeps the first row of values.
+  distinct(patient_id_child, .keep_all = TRUE) # 6890; .keep.all = keep all variables in .data. If a combination of ... is not distinct, this keeps the first row of values.
 
 # Percentages and neo admission 
 table(as.factor(Temp_data_cat2$Hypothermia_cat))
-# Mild        Moderate_Severe     Norm 
-# 1209             691            6330 
+# Mild      Moderate_Severe      Norm 
+# 989             533            5368 
 
 round(prop.table(table(as.factor(Temp_data_cat2$Hypothermia_cat))) * 100, 1)
 # Mild       Moderate_Severe      Norm 
-# 14.7             8.4            76.9 
-
-# Temp_data_neo <- Temp_data_cat2 %>%
-#   filter(admission_neo %in% "Yes")  # 218
-
-# table(Temp_data_neo$Hypothermia_cat)
-# # Mild      Moderate_Severe     Norm 
-# # 32              28             158 
-
-# round(prop.table(table(Temp_data_neo$Hypothermia_cat)) * 100, 1)
-# # Mild     Moderate_Severe        Norm 
-# # 14.7            12.8            72.5 
+# 14.4             7.7            77.9 
 
 ## For analysis: Hypothermia_cat
 
 
-# Sample6 -----------------------------------------------------------------
-## Join with Sample2
-Sample6 <- left_join(Sample2, Temp_data_cat2, by = c("patient_id_child", "case_id_child"))
+# 5. Merging with sample data-----------------------------------------------------------------
+## Join with Sample2b
+Sample2c <- left_join(Sample2b, Temp_data_cat2, by = c("patient_id_child", "case_id_child")) %>% 
+  select(- VVMO_NUMERIC_VALUE, - VVMO_MEASURE_DATE_TS)
 
-table(Sample6$Hypothermia_cat)
-# Mild      Moderate_Severe     Norm 
-# 1209             691          6330 
+summary(as.factor(Sample2c$Hypothermia_cat))
+# Mild    Moderate_Severe       Norm            NA's 
+# 989             533            5368            13 
+## 6 cases yes Nicu admission, 7 no Nicu admission -> 6 of them ambulant/tagesklinik (one child readmission and as a Begleitperson), 1 child no data entry
 
-round(prop.table(table(as.factor(Sample6$Hypothermia_cat))) * 100, 1)
+table(Sample2c$Hypothermia_cat)
+# Mild      Moderate_Severe      Norm 
+# 989             533            5368 
+
+round(prop.table(table(as.factor(Sample2c$Hypothermia_cat))) * 100, 1)
 # Mild     Moderate_Severe      Norm 
-# 14.7            8.4           76.9  
+# 14.4           7.7           77.9  
 
-Hypotherm_neo <- Sample6 %>% 
-  filter(admission_neo %in% "Yes", Hypothermia_cat %in% c("Norm", "Mild", "Moderate_Severe")) # 218
+Hypotherm_Nicu <- Sample2c %>% 
+  filter(admission_neo %in% "Yes", Hypothermia_cat %in% c("Norm", "Mild", "Moderate_Severe")) # 149
 
-table(Hypotherm_neo$Hypothermia_cat)
+table(Hypotherm_Nicu$Hypothermia_cat)
 # Mild        Moderate_Severe   Norm 
-# 32              28             158 
+# 18              21             110 
 
-round(prop.table(table(Hypotherm_neo$Hypothermia_cat)) * 100, 1)
-# Mild        Moderate_Severe     Norm 
-# 14.7            12.8            72.5
+round(prop.table(table(Hypotherm_Nicu$Hypothermia_cat)) * 100, 1)
+# Mild        Moderate_Severe   Norm 
+# 12.1            14.1          73.8
 
-## To merge with Sample3 (overview with icds)
-Sample7 <- left_join(Sample3, Temp_data_cat2, by = c("patient_id_child", "case_id_child")) 
 
-Hypotherm_newborn <- Sample7 %>%
-  filter(admission_neo %in% "Yes") %>% 
-  filter(Transfer_Gebs_Muki == TRUE) %>% 
-  filter(DIA_NK %in% c("P80.9", "P80.8")) %>% 
-  distinct() # 22
+# Codes not needed/working ------------------------------------------------
 
-table(Hypotherm_newborn$Hypothermia_cat)
-# Mild      Moderate_Severe     Norm 
-# 5              14               3 
-round(prop.table(table(Hypotherm_newborn$Hypothermia_cat)) * 100, 1)
-# Mild      Moderate_Severe       Norm 
-# 22.7            63.6            13.6 
+# Temp_data_cat4 <- Temp_data_cat3 %>%
+#   # select(patient_id_child, case_id_child, CBIS_BIRTH_DATE_TS, admission_neo, admission_neo_n, Weeks_LPM, gestational_age_total_days, VVMO_NUMERIC_VALUE, VVMO_MEASURE_DATE_TS) %>% 
+#   group_by(patient_id_child, case_id_child) %>%
+#   mutate(Hypothermia_categories = if_else(all(VVMO_NUMERIC_VALUE >= 36.5), "Normotherm", 
+#     if_else(any(VVMO_NUMERIC_VALUE < 36.0), "Moderate_Severe", 
+#             if_else(all(VVMO_NUMERIC_VALUE >= 36.0) & any(VVMO_NUMERIC_VALUE < 36.5), "Mild", 
+#                     if_else(Hypothermia_category %in% "Mild Hypothermia" & Count >= 2, "Moderate_Severe", "test")))))  
+    
+
+# Temp_data_cat <- Temp_data2 %>%
+#   select(patient_id_child, case_id_child, CBIS_BIRTH_DATE_TS, admission_neo, admission_neo_n, Weeks_LPM, gestational_age_total_days, VVMO_NUMERIC_VALUE, VVMO_MEASURE_DATE_TS) %>% 
+#   group_by(patient_id_child, case_id_child) %>%
+#   mutate(Hypothermia_category = case_when(
+#     VVMO_NUMERIC_VALUE >= 36.5 ~ "Normotherm",
+#     VVMO_NUMERIC_VALUE >= 36.0 & VVMO_NUMERIC_VALUE < 36.5 ~ "Mild_Hypothermia", # <= 60  (one episode, lasting no more than one hour)
+#     # VVMO_NUMERIC_VALUE >= 36.0 & VVMO_NUMERIC_VALUE < 36.5 ~ "Moderate/Severe Hypothermia", # recurrent, <36.5°C, at least two episodes, each separated by at least two/one hours? of normal temperature
+#     # VVMO_NUMERIC_VALUE >= 36.0 & VVMO_NUMERIC_VALUE < 36.5 ~ "Moderate/Severe Hypothermia", # persistent, duration of two hours or more
+#     VVMO_NUMERIC_VALUE < 36.0 ~ "Moderate_Severe_Hypothermia")) %>% 
+#   # group_by(patient_id_child, case_id_child, Hypothermia_category) %>% 
+#   # mutate(Count = n()) %>% 
+#   # ungroup() %>% 
+#   mutate(cat = if_else(Hypothermia_category %in% "Normotherm", 0,
+#                        if_else(Hypothermia_category %in% "Mild", 1, 2))) %>% 
+#   mutate(Category = sum(cat)) %>% 
+#   mutate(Category_new = if_else(Category == 0, "Norm",
+#                                 if_else(Category == 1, "Mild", "Moderate_Severe")))
+
+# ## To merge with Sample3 (overview with icds)
+# Sample7 <- left_join(Sample3, Temp_data_cat2, by = c("patient_id_child", "case_id_child")) 
+# 
+# Hypotherm_newborn <- Sample7 %>%
+#   filter(admission_neo %in% "Yes") %>% 
+#   filter(Transfer_Gebs_Muki == TRUE) %>% 
+#   filter(DIA_NK %in% c("P80.9", "P80.8")) %>% 
+#   distinct() # 22
+# 
+# table(Hypotherm_newborn$Hypothermia_cat)
+# # Mild      Moderate_Severe     Norm 
+# # 5              14               3 
+# round(prop.table(table(Hypotherm_newborn$Hypothermia_cat)) * 100, 1)
+# # Mild      Moderate_Severe       Norm 
+# # 22.7            63.6            13.6 
 
 
 
