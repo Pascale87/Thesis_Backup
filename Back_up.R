@@ -1721,28 +1721,6 @@ Neo_hosp_DRG <- left_join(Neo_discharge_hosp_cases, DRG_red1, by = c("patient_id
 
 
 
-# 3.1.1 NICU admission after transfer to postpartum unit-------------------------------------------------------------------
-## Trying to identify "healthy babies"
-## Exclusion of all birth with direct transfer to NICU (without movment to postpartum unit)
-
-Neo_hosp_mov <- left_join(Neo_discharge_hosp_cases, Move_stat2f)
-
-Neo_hosp_mov_muki <- Neo_hosp_mov %>%
-  filter(unit_id %in% "00005010") %>%
-  select(patient_id, case_id) %>%
-  distinct()
-## 671 observations (2 outside time frame)
-Neo_hosp_info2 <- left_join(Neo_hosp_mov_muki, Pat_info, by = c("patient_id", "case_id"))
-
-
-
-# 3.1.1.1 Hypoglycaemia ---------------------------------------------------
-Neo_hypogly <- Neo_hosp_info2 %>%
-  group_by(case_id) %>%
-  filter(any(DIA_NK %in% "P70.4")) %>% # Hypoglykämie
-  filter(any(DIA_NK %in% "P80.8"))  # Hypothermie
-
-
 
 
 
