@@ -386,7 +386,18 @@ rm(Check_id_sample2_child, Check_id_sample2_child2, Check_id_sample2_mo, Check_i
 
 # 3.4.4.1 Hypothermia categories ----------------------------------------
 
-
+Temp_data_cat <- Temp_data2 %>%
+  select(patient_id_child, case_id_child, VVMO_NUMERIC_VALUE, VVMO_MEASURE_DATE_TS) %>% 
+  group_by(patient_id_child, case_id_child) %>%
+  mutate(Hypothermia_category = case_when(
+    VVMO_NUMERIC_VALUE >= 36.5 ~ "Normotherm",
+      VVMO_NUMERIC_VALUE >= 36.0 & VVMO_NUMERIC_VALUE < 36.5 ~ "Mild", 
+        VVMO_NUMERIC_VALUE < 36.0 ~ "Moderate_Severe")) %>% 
+          mutate(cat = if_else(Hypothermia_category %in% "Normotherm", 0,
+                          if_else(Hypothermia_category %in% "Mild", 1, 2))) %>% 
+           mutate(Sum_Category = sum(cat)) %>% 
+             mutate(Hypothermia_cat = if_else(Sum_Category == 0, "Norm",
+                                      if_else(Sum_Category == 1, "Mild", "Moderate_Severe")))
 
 # Join with Diagnose_red2_corr data set
 Sample3 <- left_join(Sample2, Diagnose_red2_corr, by = c("patient_id_child" = "patient_id", "case_id_child" = "case_id")) %>% 
