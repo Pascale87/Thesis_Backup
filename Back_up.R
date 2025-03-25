@@ -1352,7 +1352,7 @@ ID_check_patient_b <- Lookup_bili %>%
 
 rm(ID_check_b, ID_check_case_b, ID_check_patient_b)
 
-# CATEGORISATION
+# CATEGORISATION (Guideline USB)
 ## Build categories based on USB bilirubin threshold
 Bili_cat_USB <- Lookup_bili %>% 
   mutate(Bili_threshold = case_when(Age_in_hours < 24 ~ 150,
@@ -1360,17 +1360,32 @@ Bili_cat_USB <- Lookup_bili %>%
                                     Age_in_hours < 72 ~ 300, 
                                     Age_in_hours >= 72 ~ 350)) %>% 
   mutate(Treatment_required_Hyperbili = if_else(Value_umol_l >= Bili_threshold, "Yes", "No"))
-## now there are sometimes several bili measurement entries per newborn --> generate one row + build a new variable and summarise it to a category varaible to better merge 
 
+# Check regarding bilirubin type (TCB, Serum)
+Bili_cat_USBb <- Bili_cat_USB %>%
+  mutate(Bili_levels = case_when(
+    bilirubin_type == "TRANSCUTAN" & Value_umol_l < Bili_threshold ~ "bili_tc_norm",
+    bilirubin_type == "TRANSCUTAN" & Value_umol_l >= Bili_threshold ~ "bili_tc_photo",
+    bilirubin_type == "SERUM" & Value_umol_l < Bili_threshold ~ "bili_serum_norm",
+    bilirubin_type == "SERUM" & Value_umol_l >= Bili_threshold ~ "bili_serum_photo"))
+
+table(Bili_cat_USBb$Bili_levels)
+# bili_serum_norm   bili_serum_photo     bili_tc_norm    bili_tc_photo 
+# 2198              26                   21267           87 
+
+# There are NAs, I want to build a new variable (check the distribution with the actual sample)
+Sample2c <- left_join(Sample2b, Bili_cat_USB, by = c("patient_id_child" = "patient_id", "case_id_child" = "case_id")) %>% 
+  select(patient_id_child, case_id_child, bilirubin_type, Value_umol_l, Treatment_required_Hyperbili) %>% 
+  mutate(bilirubin_type = if_else(is.na(bilirubin_type), "No_measure", bilirubin_type), # NA = no measurement, to remove NA
+         Value_umol_l = if_else(is.na(Value_umol_l), 0, Value_umol_l),
+         Treatment_required_Hyperbili = if_else(is.na(Treatment_required_Hyperbili), "No_measure", Treatment_required_Hyperbili))
+ 
+## now there are sometimes several bili measurement entries per newborn --> generate one row + build a new variable and summarise it to a category varaible to better merge 
 Hyperbilirubinaemia_cat <- Bili_cat_USB %>% 
   group_by(patient_id, case_id) %>% 
   summarise(Hyperbili_cat = if_else(any(Treatment_required_Hyperbili == "Yes"), "Hyperbili", "Physiological_jaundice"))
 
-# Bring together with Sample2c
-Sample3 <- left_join(Sample2c, Hyperbilirubinaemia_cat, by = c("patient_id_child" = "patient_id", "case_id_child" = "case_id"))
-
-
-# Categorisation according NICE Guideline
+# CATEGORISATION (NICE Guideline)
 ## Import NICE threshold table bili
 Threshold_bili <- read.csv("//uhg/drives/UserProfile/waldispuehlp/RedirFolders/Documents/Thesis/PDF/Threshold_Bili2.csv", header = TRUE, sep = ",")
 
@@ -1384,40 +1399,53 @@ Bili_cat_Nice <- Lookup_bili %>%
   mutate(Threshold_age = max(Threshold_bili$Age_in_hours[Threshold_bili$Age_in_hours <= Age_in_hours], na.rm = TRUE)) %>%
   ungroup() %>%
   left_join(Threshold_bili, by = c("Threshold_age" = "Age_in_hours")) %>%
-  mutate(Cat = case_when(
+  mutate(Bili_cat = case_when(
     Value_umol_l < Bili_start_phototherapy_above ~ "Jaundice",
     Value_umol_l >= Bili_start_phototherapy_above & Value_umol_l < Bili_start_exchange_therapy_above ~ "Treatment_req_Photo",
     Value_umol_l >= Bili_start_exchange_therapy_above ~ "Treatment_req_ExT"))
-## Conclusion: either a therapy would have been theoretically necessary, but there was no entry,
+
+# Check regarding bilirubin type (TCB, Serum)
+
+Bili_cat_Niceb <- Bili_cat_Nice %>% 
+mutate(Bili_levels = case_when(
+    bilirubin_type == "TRANSCUTAN" & Value_umol_l < Bili_start_phototherapy_above ~ "Bili_tc_norm",
+    bilirubin_type == "TRANSCUTAN" & Value_umol_l >= Bili_start_phototherapy_above & Value_umol_l < Bili_start_exchange_therapy_above ~ "Bili_tc_photo",
+    bilirubin_type == "TRANSCUTAN" & Value_umol_l >= Bili_start_exchange_therapy_above ~ "Bili_tc_bloodtrans",
+    bilirubin_type == "SERUM" & Value_umol_l < Bili_start_phototherapy_above ~ "Bili_serum_norm",
+    bilirubin_type == "SERUM" & Value_umol_l >= Bili_start_phototherapy_above & Value_umol_l < Bili_start_exchange_therapy_above ~ "Bili_serum_photo",
+    bilirubin_type == "SERUM" & Value_umol_l >= Bili_start_exchange_therapy_above ~ "Bili_serum_bloodtrans"))
+table(Bili_cat_Niceb$Bili_levels)
+# Bili_serum_bloodtrans       Bili_serum_norm     Bili_serum_photo    Bili_tc_bloodtrans   Bili_tc_norm       Bili_tc_photo 
+# 2                           2163                59                  10                   21103              241
+
+# Join with Procedure data to compare (with USB Nice guideline)
+Bili_comb_procedure <- left_join(Bili_cat_USBb, Procedure_red2_corr, by = c("patient_id", "case_id"), relationship = "many-to-many") %>%
+  select(patient_id, case_id, Treatment_required_Hyperbili, Bili_levels, procedure_label)
+
+# Overview of the combinations
+(Photo_USB_comb <- Bili_comb_procedure %>%
+  mutate(Phototherapy_ind_usb = case_when(
+      Bili_levels %in% c("bili_tc_photo", "bili_serum_photo") ~ TRUE, TRUE ~ FALSE), # if bili_tc_photo OR bili_serum_photo value is TRUE, for all other cases TRUE set the value to FALSE
+      Phototherapy_doc = case_when(procedure_label %in% "Sonstige Phototherapie" ~ TRUE, TRUE ~ FALSE)) %>%
+      group_by(Phototherapy_ind_usb, Phototherapy_doc) %>%
+  summarise(Neonates_count = n_distinct(patient_id))) # counts the unique newborns for each group combinations
+# Phototherapy_ind_usb   Phototherapy_doc          Neonates_count
+# <lgl>                  <lgl>                     <int>
+# 1 FALSE                FALSE                     8214
+# 2 FALSE                TRUE                       82
+# 3 TRUE                 FALSE                      53
+# 4 TRUE                 TRUE                       27
+
+# Identification cases normally out of treatment threshold
+Bili_comb_procedure2 <- Bili_comb_procedure %>%
+  filter(Bili_levels %in% c("bili_tc_norm", "bili_serum_norm") & procedure_label == "Sonstige Phototherapie") %>%
+  select(patient_id, case_id, Bili_levels, procedure_label) %>% 
+  distinct(patient_id, case_id, .keep_all = T) # 82 cases
+
+## Conclusion: compared USB and NICE Guideline there are more children who needed therapy (according the guideline) when practiced with the NICE guideline.
+## Moreover, either a therapy would have been theoretically necessary, but there was no entry in process data,
 ## or there was a therapy according to the procedure documentation, but theoretically not necessary
 
-## Join with Procedure data to compare (with USB guideline)
-Bili_data_comp <- left_join(Bili_cat_USB, Procedure_red2_corr, by = c("patient_id",  "case_id"), relationship = "many-to-many") %>%
-  select(- CHOP_NK, - PRO_START_DATE_TS, - PRO_END_DATE_TS, - item.type, - codable, - CHOP_BK)
-
-# Compare documentation
-Bili_data_comp <- Bili_data_comp %>%
-  mutate(FT = if_else(procedure_label == "Sonstige Phototherapie", "Yes", "No")) 
-# %>% 
-#   filter(procedure_label == "Sonstige Phototherapie")
-
-Matches <- Bili_data_comp %>%
-  filter(FT %in% "Yes" & Documented_Phototherape %in% "Yes") # 41
-
-## Join with Procedure data to compare (with USB Nice guideline)
-Bili_data_comp2 <- left_join(Bili_cat_Nice, Procedure_red2_corr, by = c("patient_id",  "case_id")) %>%
-  select(- CHOP_NK, - PRO_START_DATE_TS, - PRO_END_DATE_TS, - item.type, - codable, - CHOP_BK)
-
-Bili_data_comp2 <- Bili_data_comp2 %>%
-  mutate(Documented_Phototherape = if_else(procedure_label == "Sonstige Phototherapie", "Yes", "No")) %>% 
-  filter(procedure_label == "Sonstige Phototherapie")
-
-Matches2 <- Bili_data_comp2 %>%
-  filter(Cat %in% "Treatment_req_Photo", Documented_Phototherape %in% "Yes") # 92
-## in the case of an theoretical exchange transfusion, no entry in the procedure, but with a diagnosis of either ikterus or AB0 imm.
-
-
-rm(Bloodmeasure_n, Bloodmeasure_y, Bilimeasure_n, Bilimeasure_y, Hypoglyc_cat, Hypoglyc_cat2, Hypoglyc_data_cat, Hypoglyc_neo, Hypoglyc_neo2, No_measure_cases)
 
 
 # Codes not needed --------------------------------------------------------
