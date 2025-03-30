@@ -9,9 +9,9 @@ library(padr)
 library(feather)
 # library(ggplot2)
 # install.packages("lubridate")
-library(lubridate)
+# library(lubridate)
 # install.packages("janitor")
-library(janitor)
+# library(janitor)
 # install.packages("gtsummary")
 # library(gtsummary) --> Fehler: Laden von Paket oder Namensraum für ‘gtsummary’ in loadNamespace(j <- i[[1L]], c(lib.loc, .libPaths()), versionCheck = vI[[j]]): fehlgeschlagen
 # Namensraum ‘glue’ 1.7.0 ist bereits geladen, aber >= 1.8.0 wird gefordert
@@ -523,7 +523,7 @@ Missing_temp <- Sample_test5 %>%
 Sample_test5 <- Sample_test5 %>% 
    mutate(Hypothermia_cat = replace_na(Hypothermia_cat, "No_measurement"))
 
- 
+
 # 3.4.4.4 Overview HHH  ---------------------------------------------------
 ## To have an overview if a child has none, one, two or all HHH diagnoes
 # With Test sample
@@ -544,6 +544,8 @@ Sample_test6 <- Sample_test5 %>%
            symptom_count == 3 ~ "All_diagnoses",
            TRUE ~ "Unknown")) %>% 
   select(- hypoglyc_y, - hypotherm_y, - hyperbili_y, - symptom_count)
+
+table(Sample_test6$HHH_diagnoses)
 
 
 # 3.4.5 Other Risk factors HHH ------------------------------------------------------
@@ -572,7 +574,7 @@ Sample_test6 <- left_join(Sample_test6, Parity, by = c("patient_id_child", "case
   select(-Anzahl_vorausg_SS, -Anzahl_vorausg_LebGeb, -Anzahl_fehl_Geb, -Anzahl_Interruptio)
 
 # 3.4.5.2 Maternal age ----------------------------------------------------
-Mother_data <- left_join(Sample_test, Pat_info, by = c("patient_id_mother" = "patient_id", "case_id_mother" = "case_id"), relationship = "many-to-many") %>% 
+Mother_data <- left_join(Sample2, Pat_info, by = c("patient_id_mother" = "patient_id", "case_id_mother" = "case_id"), relationship = "many-to-many") %>% 
   select(patient_id_mother, case_id_mother, PAT_BIRTH_DATE, CBIS_BIRTH_DATE_TS, PAT_CITIZENSHIP_COUNTRY) # %>% 
   # distinct(patient_id_mother, .keep_all = TRUE)
 
@@ -602,7 +604,6 @@ Sample_test6 <- left_join(Sample_test6, Mother_data, by = c("patient_id_mother",
 summary(Sample_test6$RF_Maternal_age)
 # Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
 # 14.55   30.49   33.73   33.52   36.87   52.37
-
 
 rm(Mother_data, Underage, Parity)
 
@@ -685,38 +686,46 @@ Sample_maternal_rf <- left_join(Sample_test6, Diagnose_red2_corr, by = c("patien
   select(- DIG_DATE_TS, - DIG_RANK, - DIG_TARGET_SITE, - DIA_BK, - ICD_groups) %>% 
   rename(DIA_NK_maternal= DIA_NK, ICD_labels_maternal = ICD_labels) %>%
   relocate(DIA_NK_maternal, ICD_labels_maternal, .after = admission_neo_n) %>%
-  relocate(Country, .after = case_id_child) 
+  relocate(Country, .after = case_id_child) # 55890
 
 ## ICD-10
 Maternal_RF_hypoglyc_codes <- c("O24.0", "O24.1", "O24.4", "E10.90", "E10.91", "E11.20", "E11.90", "E11.91", "E13.90", "E13.91","E14.90")
 Maternal_RF_hyperbili_codes <- "D55.0"
 
-Maternal_dia_RF <- Sample_maternal_rf %>%
-  group_by(patient_id_mother, case_id_mother) %>%
-  filter(DIA_NK_maternal %in% Maternal_RF_hypoglyc_codes | DIA_NK_maternal %in% Maternal_RF_hyperbili_codes) %>%
-  select(DIA_NK_maternal, ICD_labels_maternal) # 940
+# Identify cases with maternal risk factors
+Maternal_RF_cases <- Sample_maternal_rf %>%
+  filter(DIA_NK_maternal %in% c(Maternal_RF_hypoglyc_codes, Maternal_RF_hyperbili_codes)) %>%
+  distinct(patient_id_mother, case_id_mother) # 894
 
-check_Maternal_dia_RF <- Maternal_dia_RF %>% 
-  select(patient_id_mother, case_id_mother) %>% 
-  distinct() # 894
+Sample_test_final <- anti_join(Sample_test6, Maternal_RF_cases, by = c("patient_id_mother", "case_id_mother")) # 5935
 
-summary(as.factor(Maternal_dia_RF$ICD_labels_maternal))
+nrow(Sample_test6) # 6836
+nrow(Sample_test_final) # 5935
+nrow(Sample_test6) - nrow(Sample_test_final) # 901
 
-Sample_test_final <- left_join(Sample_test6, Maternal_dia_RF, by = c("patient_id_mother", "case_id_mother"))
-Sample_test_final2 <- Sample_test_final %>% 
-  filter(!DIA_NK_maternal %in% Maternal_RF_hypoglyc_codes) %>% 
-  filter(!DIA_NK_maternal %in% Maternal_RF_hyperbili_codes) %>% 
-  select(- DIA_NK_maternal, - ICD_labels_maternal) # 5935
-
-check_Sample_test_final2 <- Sample_test_final2 %>% 
-  select(patient_id_child, case_id_child) %>% 
-  distinct() # 5935
+Sample_test6 %>%
+  semi_join(Maternal_RF_cases, by = c("patient_id_mother", "case_id_mother")) %>% # Gibt alle Beobachtungen des Data Frames x zurück, für die es einen Match im Data Frame y gibt
+  count(patient_id_mother, case_id_mother, name = "n") %>%
+  arrange(desc(n)) 
+# Conclusion: the check revealed that 894 maternal risk cases were identified, which corresponds to 901 rows
+# in the data set. This is again due to the fact that some maternal cases have several rows, i.e. diagnosis in several children
 
 
 # 4. Overview sample ------------------------------------------------------
+
+summary(Sample_test_final)
+
+# To change LOS from mins to h: attr: Object Attributes, Description: Get or set specific attributes of an object.: attr(x, which) <- value
+Sample_test_final <- Sample_test_final %>%
+  mutate(LOS = LOS/60)
+attr(Sample_test_final$LOS, "units") <- "h"
+
 # NICU admission
 # Percentages Admission NICU
-Sample_test_final2 %>%
+Sample_nicu <- Sample_test_final %>%
+  filter(admission_neo_n == 1)
+
+Sample_test_final %>%
   ungroup() %>% 
   summarise(total = n(),
             admitted = sum(admission_neo_n %in% 1),
@@ -725,29 +734,73 @@ Sample_test_final2 %>%
 # <int>    <int>   <dbl>
 # 5935      126    2.12
 
-table(Sample_test_final2$HHH_diagnoses)
+table(Sample_test_final$HHH_diagnoses)
 # Hyperbili_Hypothermia        Hyperbili_only    Hypoglyc_Hyperbili    Hypoglyc_Hypothermia         Hypoglyc_only        Hypotherm_only        None 
 # 9                            33                1                     78                           116                  1213                  4485 
-table(Sample_test_final2$Hypothermia_cat)
+table(Sample_test_final$Hypothermia_cat)
 # Mild Moderate_Severe  No_measurement            Norm 
 # 841             459              10            4625 
-table(Sample_test_final2$Hypoglycaemia_cat)
+table(Sample_test_final$Hypoglycaemia_cat)
 # Mild       Moderate No_measurement Normoglycaemic         Severe 
 # 113             15           4298           1442             67 
-table(Sample_test_final2$Hyperbili_cat)
+table(Sample_test_final$Hyperbili_cat)
 # Hyperbili         No_measurement Physiological_jaundice 
 # 43                    617                   5275
 
-Sample_test_final2 %>%
+# Identify newborns admitted to NICU based on categories
+Summary_neonatal_Nicu_hhh <- Sample_test_final %>%
   group_by(Hypothermia_cat, Hypoglycaemia_cat, Hyperbili_cat) %>%
   summarise(n_total = n(),
-    n_admitted = sum(admission_neo_n == 1),
-    percent = (n_admitted / n_total) * 100)
+            n_admitted = sum(admission_neo_n == 1),
+            percent = (n_admitted / n_total) * 100)
 
-summary(Sample_test_final2)
+print(Summary_neonatal_Nicu_hhh, n = Inf)
 
+# Descriptive analysis ----------------------------------------------------
+# Sample size (act)
+n_total <- 5935
 
+# Numeric variables (birth weight, GA, LOS, admission NICU)
+# Summary
+Summary_numeric <- Sample_test_final %>%
+  ungroup() %>% 
+  summarise(
+    min_weight = min(Birth_weight_g, na.rm = TRUE),
+    max_weight = max(Birth_weight_g, na.rm = TRUE),
+    mean_weight = mean(Birth_weight_g, na.rm = TRUE),
+    sd_weight = sd(Birth_weight_g, na.rm = TRUE),
+    iqr_weight_q1 = quantile(Birth_weight_g, 0.25, na.rm = TRUE),
+    iqr_weight_q3 = quantile(Birth_weight_g, 0.75, na.rm = TRUE),
+    min_ga = min(Weeks_LPM, na.rm = TRUE),
+    max_ga = max(Weeks_LPM, na.rm = TRUE),
+    mean_ga = mean(Weeks_LPM, na.rm = TRUE),
+    sd_ga = sd(Weeks_LPM, na.rm = TRUE),
+    iqr_ga_q1 = quantile(Weeks_LPM, 0.25, na.rm = TRUE),
+    iqr_ga_q3 = quantile(Weeks_LPM, 0.75, na.rm = TRUE),
+    min_los = min(as.numeric(LOS, units = "h"), na.rm = TRUE),
+    max_los = max(as.numeric(LOS, units = "h"), na.rm = TRUE),
+    mean_los = mean(as.numeric(LOS, units = "h"), na.rm = TRUE),
+    sd_los = sd(as.numeric(LOS, units = "h"), na.rm = TRUE),
+    iqr_los_q1 = quantile(LOS, units = "h", 0.25, na.rm = TRUE),
+    iqr_los_q3 = quantile(LOS, units = "h", 0.75, na.rm = TRUE),
+    Nicu_count = sum(admission_neo_n == 1),
+    Nicu_percent = (sum(admission_neo_n == 1) / n()) * 100)
 
+# Table, numerical variables (birth weight, LOS, GA)
+Summary_numeric_table <- tibble(Variable = c("Birth weight (g)", "Gestational age (weeks)", "LOS (hours)"),
+                                Min = round(c(Summary_numeric$min_weight, Summary_numeric$min_ga, Summary_numeric$min_los), 2),
+                                Max = round(c(Summary_numeric$max_weight, Summary_numeric$max_ga, Summary_numeric$max_los), 2),
+                                Mean = round(c(Summary_numeric$mean_weight, Summary_numeric$mean_ga, Summary_numeric$mean_los), 2),
+                                SD = round(c(Summary_numeric$sd_weight, Summary_numeric$sd_ga, Summary_numeric$sd_los), 2),
+                                IQR_Range = c(
+                                  paste(round(Summary_numeric$iqr_weight_q1, 2), "–", round(Summary_numeric$iqr_weight_q3, 2)),
+                                  paste(round(Summary_numeric$iqr_ga_q1, 2), "–", round(Summary_numeric$iqr_ga_q3, 2)),
+                                  paste(round(Summary_numeric$iqr_los_q1, 2), "–", round(Summary_numeric$iqr_los_q3, 2))))
+
+# NICU admission
+Nicu_table <- tibble("NICU admission" = c("No", "Yes"),
+                     n = c(Summary_numeric$Nicu_count, n_total - Summary_numeric$Nicu_count),
+                     percent = c(Summary_numeric$Nicu_percent, 100 - Summary_numeric$Nicu_percent))
 
 
 # Code not needed ---------------------------------------------------------
