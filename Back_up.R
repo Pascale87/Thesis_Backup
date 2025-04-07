@@ -243,13 +243,13 @@ Birth_corr2_m <- Birth_corr2_m %>%
 #   select(patient_id_child, case_id_child, CBIS_BIRTH_DATE_TS, CBIS_BIRTH_DAY_BK, CBIS_BIRTH_TIM_BK, CBIS_WEIGHT, CBIS_WEIGHT_UNIT, CBIS_STILLBIRTH_FLAG, CBIS_CONGENITAL_MALFORMATION,
 #          CBIS_BODY_SIZE, CBIS_BODY_SIZE_UNIT, CBIS_HEAD_SIZE, CBIS_HEAD_SIZE_UNIT, admission_neo, admission_neo_n, Weeks_LPM, Days_LPM, gestational_age_total_days, CON_VALUE) 
 
-# Create data set with newborns >= 37 GA (259 weeks)
+# Create data sample with newborns >= 37 GA (259 weeks)
 Sample1 <- Birth_corr2_m %>% 
   filter(gestational_age_total_days >= "259") # 7802 
 
 # 3.4.1.1 Birth weight ---------------------------------------------------------
 ## To exclude newborns which have a birth weight < 2500g and birth weight > 4500g
-summary(Sample1$CBIS_WEIGHT) # there are cases with less than 2500 g and more than 4500g
+summary(Sample1$CBIS_WEIGHT) # there are cases with less than 2500 g and also cases with more than 4500g
 Weight_exclude <- Sample1 %>% 
   summarise(below_2500 = sum(CBIS_WEIGHT < 2500), # 228
             above_4500 = sum(CBIS_WEIGHT > 4500)) # 77
@@ -262,6 +262,15 @@ Sample1 <- Sample1 %>%
   filter(CBIS_WEIGHT >= 2500 & CBIS_WEIGHT <= 4500) %>% 
   select(- CBIS_WEIGHT_UNIT) %>% 
   rename(Birth_weight_g = CBIS_WEIGHT) # 7497
+
+# Build categories for the descriptive analysis (500g step)
+Sample1 <- Sample1 %>% 
+  filter(Birth_weight_g >= 2500 & Birth_weight_g <= 4500) %>% 
+  mutate(weight_cat = case_when(Birth_weight_g >= 2500 & Birth_weight_g < 3000 ~ "2500-2999",
+                                Birth_weight_g >= 3000 & Birth_weight_g < 3500 ~ "3000-3500",
+                                Birth_weight_g >= 3500 & Birth_weight_g < 4000 ~ "3500-4000",
+                                Birth_weight_g >= 4000 & Birth_weight_g <= 4500 ~ "4000-4500"))
+
 
 # 3.4.2 Stillbirth and Malformations --------------------------------------
 table(Sample1$CBIS_STILLBIRTH_FLAG) 
@@ -280,7 +289,7 @@ Check_stillbirth <- Sample1 %>%
 Sample1 <- Sample1 %>% 
   filter(CBIS_STILLBIRTH_FLAG == 0, CBIS_CONGENITAL_MALFORMATION == 0) # 7074, no unknown cases present
 
-## To check
+## To check --> should be performed later too
 # Percentages
 Birth_corr2_m %>%
   summarise(total = n(),
@@ -290,7 +299,7 @@ Birth_corr2_m %>%
 # <int>     <int>   <dbl>
 #1  8950      7802    87.2
 
-# Admission neo (just a between step for control, inclusion criteria 2 is actually missing)
+# Admission neo (just a between step for control, inclusion criteria 2 is actually missing) --> to performe later too
 Adm_nicu <- Sample1 %>% 
   filter(admission_neo %in% "Yes") # 340
 Sample1 %>%
@@ -319,31 +328,41 @@ table(is.na(LOS_newborns$LOS_neonatal)) # no NAs
 # Merging with Sample1, with variables selection and arrangement and renaming variables
 Sample2 <- left_join(Sample1, LOS_newborns, by = c("patient_id_child", "case_id_child")) %>% 
   select(- CBIS_STILLBIRTH_FLAG, - CBIS_CONGENITAL_MALFORMATION) %>% 
-  relocate(admission_postnatal_neonatal, discharge_postnatal_neonatal, admission_neo, admission_neo_n, .after = last_col()) %>% # .after = Destination of columns selected by
-  rename(admission_MUKI = admission_postnatal_neonatal, discharge_MUKI = discharge_postnatal_neonatal, LOS = LOS_neonatal) 
+  relocate(Birth_weight_g, weight_cat, .after = last_col()) %>% # .after = Destination of columns selected by
+  relocate(admission_postnatal_neonatal, discharge_postnatal_neonatal, LOS_neonatal, admission_neo, admission_neo_n, .after = last_col()) %>% 
+  rename(admission_postnatalunit = admission_postnatal_neonatal, discharge_postnatalunit = discharge_postnatal_neonatal, LOS = LOS_neonatal) 
 
 summary(Sample2)
 
 # Check admission_Muki
-table(is.na(Sample2$admission_MUKI))
+table(is.na(Sample2$admission_postnatalunit))
 # FALSE  TRUE 
 # 6836   238 
 
 # Double check cases not transferred directly from the labour ward to the postnatal unit
 Sample2_isna_transfer <- Sample2 %>% 
-  filter(is.na(admission_MUKI)) # 238
+  filter(is.na(admission_postnatalunit)) # 238
 
-Move_newborn2 <- left_join(Sample2_isna_transfer, Move_stat2f, by = c("patient_id_child" = "patient_id", "case_id_child" = "case_id")) %>% 
+# Identify the cases when not transferred to the postnatal unit
+Move_newborn <- left_join(Sample2_isna_transfer, Move_stat2f, by = c("patient_id_child" = "patient_id", "case_id_child" = "case_id")) %>% 
   select(patient_id_child, case_id_child, CBIS_BIRTH_DATE_TS, admission_neo, admission_neo_n, MOV_START_DATE_TS, MOV_END_DATE_TS, CAS_TYPE, MOV_KIND, MOV_TYPE,
-         MOV_REASON1, MOV_REASON2, unit_id, ORG) 
+         MOV_REASON1, MOV_REASON2, unit_id, ORG) # 488, without distinct
 
-Labour_dis_nicu <- Move_newborn2 %>% 
-  filter(admission_neo %in% "Yes") 
-## Reasons: adm. NICU n = 196, Schwangerenabtl n = 1, Amb/Tagekl n = 3, Chirurgie n = 1, Gyn n = 1, Zuhause/GH n = 9, --> 27 cases?
+# Directly transferred from the labour ward to NICU
+Labour_dis_nicu <- Move_newborn %>% 
+  filter(admission_neo %in% "Yes") %>%  # 382
+  distinct(patient_id_child, case_id_child) # 191
+
+# If not, where was the discharge?
+Labour_dis_nicu_no <- Move_newborn %>% 
+  filter(admission_neo %in% "No") %>%  # 106
+  distinct(patient_id_child, case_id_child) # 47
+
+## Other discharge reasons: Birth centre/other hospital n= 32; Home n= 7; Other unit within hospital n= 6; unsure n= 2
 
 # Dataset cleaned without cases with no transfer from the labour ward to neonatal unit
 Sample2 <- Sample2 %>% 
-  filter(!is.na(admission_MUKI)) # 6836
+  filter(!is.na(admission_postnatalunit)) # 6836
 
 # attr: Object Attributes, Description: Get or set specific attributes of an object.: attr(x, which) <- value
 # Sample2 <- Sample2 %>% 
@@ -351,14 +370,14 @@ Sample2 <- Sample2 %>%
 # attr(Sample2$LOS, "units") <- "h"
 
 # Check ids
-
+## child
 Check_id_sample2_child <- Sample2 %>% 
   select(patient_id_child) %>% 
   distinct # 6836
 Check_id_sample2_child2 <- Sample2 %>% 
   select(case_id_child) %>% 
   distinct # 6836
-
+## mother
 Check_id_sample2_mo <- Sample2 %>% 
   select(patient_id_mother) %>% 
   distinct # 6244 -> mother gave more than one birth 
@@ -366,8 +385,36 @@ Check_id_sample2_mo2 <- Sample2 %>%
   select(case_id_mother) %>% 
   distinct # 6782
 
-rm(Check_id_sample2_child, Check_id_sample2_child2, Check_id_sample2_mo, Check_id_sample2_mo2, Sample1, Labour_dis_nicu)
+rm(Check_id_sample2_child, Check_id_sample2_child2, Check_id_sample2_mo, Check_id_sample2_mo2, Sample1, Labour_dis_nicu, Sample2_isna_transfer)
 
+
+# 3.4.4 Neonatal diagnoses -------------------------------------------------
+
+# Merge Sample with diagnose data
+Sample2_dia_neonatal <- left_join(Sample2, Diagnose_red2_corr, by = c("patient_id_child" = "patient_id", "case_id_child" = "case_id")) %>% 
+  select(patient_id_child, case_id_child, DIA_NK, ICD_labels)
+
+## Include diagnoses: 
+# P55.1, R63.4, Q83.3, Q69.2, Z83.4, Q82.5, Q38.1, Z83.5, R01.0, Z03.8, Z03.3, Z03.5, P54.6, H11.3, R00.1, P83.4, L81.3, U07.2, Z38.0, P92.0,
+# P91.1, L53.0, P83.1, R25.3, R50.80, R50.9, R14, P05.1, P05.0, K21.9, P12.1, P15.5, P12.9, P15.3, P15.4, P13.8, Q54.0, D18.01, D18.05, P78.2, P54.5, K40.90, K42.9,
+# R01.1, R05, P80.9, Z83.1, P12.0, P39.1, Z84.3, Z20.6, Z20.8, Z20.5, P90, Z84.1, Z83.2, P83.9, K13.2, R22.0, R22.2, R22.3, R59.0, D22.6, D22.5, D22.3, D22.9, Q70.2,
+# P08.2, D48.5, P07.12, P58.1, P58.8, P59.8, P59.9, Z24.6, P38, T14.03, Q66.2, Q66.4, Q66.0, L05.9, Q18.1, Z81, P92.1, P55.0, P92.5, R90.8, Q66.8, Q67.4,
+# Q10.3, P92.8, Q54.8, P22.8, P08.1, P07.3, P13.1, P12.8, P14.3, D23.4, D23.9, R01.2, P70.4, P80.8, P51.8, R68.8, P15.8, Z84.8, L81.8, P81.8, R19.88, P72.8, S09.8,
+# P96.8, K00.8, P94.8, R23.8, N83.2, R39.8, R29.8, K09.8, X59.9, R50.88, Z11, U99.0, P81.9, K00.6, P70.1, P70.0, R00.0, M43.6, P70.9, P61.0, P92.2, P08.0, P12.4,
+# R60.0, R69, W64.9, Z04.3, R23.4, T81.2, P96.3, L22, Z38.3, Z38.5, Y69, E16.2
+
+Included_icd_codes <- c("P55.1", "R63.4", "Q83.3", "Q69.2", "Z83.4", "Q82.5", "Q38.1", "Z83.5", "R01.0", "Z03.8", "Z03.3", "Z03.5", 
+                        "P54.6", "H11.3", "R00.1", "P83.4", "L81.3", "U07.2", "Z38.0", "P92.0", "P91.1", "L53.0", "P83.1", "R25.3", 
+                        "R50.80", "R50.9", "R14", "P05.1", "P05.0", "K21.9", "P12.1", "P15.5", "P12.9", "P15.3", "P15.4", "P13.8", 
+                        "Q54.0", "D18.01", "D18.05", "P78.2", "P54.5", "K40.90", "K42.9", "R01.1", "R05", "P80.9", "Z83.1", "P12.0", 
+                        "P39.1", "Z84.3", "Z20.6", "Z20.8", "Z20.5", "P90", "Z84.1", "Z83.2", "P83.9", "K13.2", "R22.0", "R22.2", 
+                        "R22.3", "R59.0", "D22.6", "D22.5", "D22.3", "D22.9", "Q70.2", "P08.2", "D48.5", "P07.12", "P58.1", "P58.8", 
+                        "P59.8", "P59.9", "Z24.6", "P38", "T14.03", "Q66.2", "Q66.4", "Q66.0", "L05.9", "Q18.1", "Z81", "P92.1", "D55.0",
+                        "P55.0", "P92.5", "R90.8", "Q66.8", "Q67.4", "Q10.3", "P92.8", "Q54.8", "P22.8", "P08.1", "P07.3", "P13.1", 
+                        "P12.8", "P14.3", "D23.4", "D23.9", "R01.2", "P70.4", "P80.8", "P51.8", "R68.8", "P15.8", "Z84.8", "L81.8", "P59.0",
+                        "P81.8", "R19.88", "P72.8", "S09.8", "P96.8", "K00.8", "P94.8", "R23.8", "N83.2", "R39.8", "R29.8", "K09.8", 
+                        "X59.9", "R50.88", "Z11", "U99.0", "P81.9", "K00.6", "P70.1", "P70.0", "R00.0", "M43.6", "P70.9", "P61.0", "E16.2",
+                        "P92.2", "P08.0", "P12.4", "R60.0", "R69", "W64.9", "Z04.3", "R23.4", "T81.2", "P96.3", "L22", "Z38.3", "Z38.5", "Y69")
 
 # 3.4.4 Neonatal diagnoses -------------------------------------------------
 
@@ -382,6 +429,87 @@ rm(Check_id_sample2_child, Check_id_sample2_child2, Check_id_sample2_mo, Check_i
 #                    "P96.8", "K00.8", "P94.8", "R23.8", "K09.8", "N83.2", "R39.8", "R29.8", "X59.9", "Q17.3", "Z11", "U99.0", "P81.9", "K00.6", "P70.1", "P70.0", 
 #                    "R00.0", "R00.1", "M43.6", "P70.9", "P92.2", "P08.0", "P12.4", "R60.0", "R69", "W64.9", "Z04.3", "R23.4", "T81.2", "P96.3", "L22", "Z38.3", 
 #                    "Z38.5", "Y69", "E16.2", "P59.0", "P59.8.")
+
+Sample2_dia_neonatal2 <- Sample2_dia_neonatal %>%
+  filter(DIA_NK %in% Included_icd_codes) # 10594
+
+
+## HHH RELEAVANT DIAGNOSES
+# 1. Hypothermia: P80.0, P80.8, P80.9
+# 2. Hypoglycaemia: P70.4, E16.2
+# 3. Hyperbilirubinaemia: P58.1, P58.8, P59.0, P59.8., P59.9
+
+# ICD-10 codes
+## Diagnoses
+Hypothermia_icd <- c("P80.0", "P80.8", "P80.9")
+Hypoglycaemia_icd <- c("P70.4", "E16.2")
+Hyperbilirubinaemia_icd <- c("P58.1", "P58.8", "P59.0", "P59.8", "P59.9")
+
+## HHH RELEVANT RISK FACTORS (NEONATAL/MATERNAL)
+# 1. Hypothermia: P07.3, P70.4, E16.2, P05.0, P81.8, P81.9 / Sectio (mode of delivery), age of mother, race/ethnicity
+# 2. Hypoglycaemia: P70.0, P70.1, P70.9, P80.8, P80.9, P58.1, P58.8, P59.0, P59.8, P59.9, P05.0, P07.3, P08.0, P08.1, R63.4, P92.5, P92.2, P92.8, Q38.1 
+# / O24.0, O24.1, O24.4, E10.90, E10.91, E11.20, E11.90, E11.91, E13.90, E13.91, E14.90, sectio (mode of delivery), parity
+# 3. Hyperbilirubinaemia: P07.3, D55.0, P55.0, P55.1, P12.0, Z83.2, P92.5, P92.2, P92.8, R63.4, Q38.1, P80.8, P80.9, P70.4, E16.2 
+# / age of mother, O24.0, O24.1, O24.4, E10.90, E10.91, E11.20, E11.90, E11.91, E13.90, E13.91, E14.90, race/ethnicity, D55.0
+
+Hypothermia_risk_icd <- c("P07.3", "P70.4", "E16.2", "P05.0", "P81.8", "P81.9")
+Hypoglycaemia_risk_icd <- c("P70.0", "P70.1", "P70.9", "P80.8", "P80.9", "P58.1", "P58.8", "P59.0", "P59.8", "P59.9", "P05.0", "P07.3", "P08.0", "P08.1", "R63.4", "P92.5", "P92.2", "P92.8", "Q38.1")
+Hyperbilirubinaemia_risk_icd <- c("P07.3", "D55.0", "P55.0", "P55.1", "P12.0", "Z83.2", "P92.5", "P92.2", "P92.8", "R63.4", "Q38.1", "P80.8", "P80.9", "P70.4", "E16.2")
+
+## ICD codes related to HHH summarised
+HHH_diagnoses_icd <- c(Hypothermia_icd, Hypoglycaemia_icd, Hyperbilirubinaemia_icd)
+HHH_risk_icd <- c(Hypothermia_risk_icd, Hypoglycaemia_risk_icd, Hyperbilirubinaemia_risk_icd)
+
+# 3.4.4.1 Sample without RF -------------------------------------------------------
+
+# To identify newborns only with diagnosis "Einling, Geburt im Krankenhaus", "Zwilling, Geburt im Krankenhaus"
+Newborn_Z38.0 <- Sample2_dia_neonatal2 %>%
+  filter(DIA_NK %in% c("Z38.0", "Z38.3")) %>% 
+  distinct(patient_id_child, case_id_child, DIA_NK) %>% 
+  mutate(Birth_type = case_when(DIA_NK %in% "Z38.0" ~ "Singleton_birth_hospital",
+                                DIA_NK %in% "Z38.3" ~ "Twin_birth_hospital")) # 6833
+
+# To identify newborn only with diagnosis "Einling, Geburt im Krankenhaus" and "Zwilling, Geburt im Krankenhaus" and HHH diagnoses if there is one
+Newborn_HHH <- Sample2_dia_neonatal2 %>%
+  filter(DIA_NK %in% HHH_diagnoses_icd)  # 395 --> there are also cases with more than one diagnose, so distinct() is not meaniful!
+
+# Step 1, to identify newborns with a HHH diagnoses
+Newborn_hypothermia <- Sample2_dia_neonatal2 %>%
+  filter(DIA_NK %in% Hypothermia_icd) %>%
+  distinct(patient_id_child, case_id_child) %>%
+  mutate(Diag_Hypothermia = TRUE) # 144
+
+Newborn_hypoglycaemia <- Sample2_dia_neonatal2 %>%
+  filter(DIA_NK %in% Hypoglycaemia_icd) %>%
+  distinct(patient_id_child, case_id_child) %>%
+  mutate(Diag_Hypoglycaemia = TRUE) # 207
+
+Newborn_hyperbili <- Sample2_dia_neonatal2 %>%
+  filter(DIA_NK %in% Hyperbilirubinaemia_icd) %>%
+  distinct(patient_id_child, case_id_child) %>%
+  mutate(Diag_Hyperbili = TRUE) # 44
+
+Sample_without_rf <- Sample2 %>% 
+  left_join(Newborn_Z38.0, by = c("patient_id_child", "case_id_child")) %>%
+  left_join(Newborn_hypothermia, by = c("patient_id_child", "case_id_child")) %>%
+  left_join(Newborn_hypoglycaemia, by = c("patient_id_child", "case_id_child")) %>%
+  left_join(Newborn_hyperbili, by = c("patient_id_child", "case_id_child")) %>% 
+  mutate(Diag_Hypothermia = ifelse(is.na(Diag_Hypothermia), FALSE, Diag_Hypothermia),
+         Diag_Hypoglycaemia = ifelse(is.na(Diag_Hypoglycaemia), FALSE, Diag_Hypoglycaemia),
+         Diag_Hyperbili = ifelse(is.na(Diag_Hyperbili), FALSE, Diag_Hyperbili),
+         Diag_HHH = Diag_Hypothermia | Diag_Hypoglycaemia | Diag_Hyperbili,
+         Birth_type = case_when(DIA_NK == "Z38.0" ~ "Singleton_birth_hospital", DIA_NK == "Z38.3" ~ "Twin_birth_hospital", TRUE ~ "Other_or_missing")) # 6836
+
+
+
+# # Rename the vriables
+# Sample_without_rf <- Sample_without_rf %>%
+#   mutate(Z38_0 = case_when(Diag_Z38_0 == TRUE ~ "Singleton_birth_hospital", TRUE ~ "Other_Missing"),
+#          Hypothermia = case_when(Diag_Hypothermia == TRUE ~ "Hypothermia_y", TRUE ~ "Hypothermia_n"),
+#          Hypoglycaemia = case_when(Diag_Hypoglycaemia == TRUE ~ "Hypoglycaemia_y", TRUE ~ "Hypoglycaemia_n"),
+#          Hyperbilirubinaemia = case_when(Diag_Hyperbili == TRUE ~ "Hyperbili_y", TRUE ~ "Hyperbili_n"),
+#          HHH_status = case_when(Diag_HHH == TRUE ~ "HHH_diagnoses_y", TRUE ~ "HHH_diagnoses_no")) %>% 
+#   select(- Diag_Z38_0, - Diag_Hypothermia, - Diag_Hypoglycaemia, - Diag_Hyperbili, - Diag_HHH)
 
 ## Include codes with unsure diagnoses:
 # Include_codes2 <- c("P55.1", "R63.4", "Z83.4", "Z83.5", "P54.6", "H11.3", "P83.4", "L81.3", "U07.2", "Z83.3", "Z38.0", "P92.0", "P83.1", "L53.0", "R25.3", "P05.2", 
