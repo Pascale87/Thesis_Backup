@@ -389,49 +389,40 @@ rm(Check_id_sample2_child, Check_id_sample2_child2, Check_id_sample2_mo, Check_i
 
 
 # 3.4.4 Neonatal diagnoses -------------------------------------------------
-
 # Merge Sample with diagnose data
 Sample2_dia_neonatal <- left_join(Sample2, Diagnose_red2_corr, by = c("patient_id_child" = "patient_id", "case_id_child" = "case_id")) %>% 
   select(patient_id_child, case_id_child, DIA_NK, ICD_labels)
 
-## Include diagnoses: 
-# P55.1, R63.4, Q83.3, Q69.2, Z83.4, Q82.5, Q38.1, Z83.5, R01.0, Z03.8, Z03.3, Z03.5, P54.6, H11.3, R00.1, P83.4, L81.3, U07.2, Z38.0, P92.0,
-# P91.1, L53.0, P83.1, R25.3, R50.80, R50.9, R14, P05.1, P05.0, K21.9, P12.1, P15.5, P12.9, P15.3, P15.4, P13.8, Q54.0, D18.01, D18.05, P78.2, P54.5, K40.90, K42.9,
-# R01.1, R05, P80.9, Z83.1, P12.0, P39.1, Z84.3, Z20.6, Z20.8, Z20.5, P90, Z84.1, Z83.2, P83.9, K13.2, R22.0, R22.2, R22.3, R59.0, D22.6, D22.5, D22.3, D22.9, Q70.2,
-# P08.2, D48.5, P07.12, P58.1, P58.8, P59.8, P59.9, Z24.6, P38, T14.03, Q66.2, Q66.4, Q66.0, L05.9, Q18.1, Z81, P92.1, P55.0, P92.5, R90.8, Q66.8, Q67.4,
-# Q10.3, P92.8, Q54.8, P22.8, P08.1, P07.3, P13.1, P12.8, P14.3, D23.4, D23.9, R01.2, P70.4, P80.8, P51.8, R68.8, P15.8, Z84.8, L81.8, P81.8, R19.88, P72.8, S09.8,
-# P96.8, K00.8, P94.8, R23.8, N83.2, R39.8, R29.8, K09.8, X59.9, R50.88, Z11, U99.0, P81.9, K00.6, P70.1, P70.0, R00.0, M43.6, P70.9, P61.0, P92.2, P08.0, P12.4,
-# R60.0, R69, W64.9, Z04.3, R23.4, T81.2, P96.3, L22, Z38.3, Z38.5, Y69, E16.2
+table(Sample2_dia_neonatal$ICD_labels) # overview diagnoses
 
+## Include diagnoses: 
 Included_icd_codes <- c("P55.1", "R63.4", "Q83.3", "Q69.2", "Z83.4", "Q82.5", "Q38.1", "Z83.5", "R01.0", "Z03.8", "Z03.3", "Z03.5", 
                         "P54.6", "H11.3", "R00.1", "P83.4", "L81.3", "U07.2", "Z38.0", "P92.0", "P91.1", "L53.0", "P83.1", "R25.3", 
                         "R50.80", "R50.9", "R14", "P05.1", "P05.0", "K21.9", "P12.1", "P15.5", "P12.9", "P15.3", "P15.4", "P13.8", 
                         "Q54.0", "D18.01", "D18.05", "P78.2", "P54.5", "K40.90", "K42.9", "R01.1", "R05", "P80.9", "Z83.1", "P12.0", 
-                        "P39.1", "Z84.3", "Z20.6", "Z20.8", "Z20.5", "P90", "Z84.1", "Z83.2", "P83.9", "K13.2", "R22.0", "R22.2", 
+                        "Z84.3", "Z20.6", "Z20.8", "Z20.5", "P90", "Z84.1", "Z83.2", "P83.9", "K13.2", "R22.0", "R22.2", 
                         "R22.3", "R59.0", "D22.6", "D22.5", "D22.3", "D22.9", "Q70.2", "P08.2", "D48.5", "P07.12", "P58.1", "P58.8", 
                         "P59.8", "P59.9", "Z24.6", "P38", "T14.03", "Q66.2", "Q66.4", "Q66.0", "L05.9", "Q18.1", "Z81", "P92.1", "D55.0",
-                        "P55.0", "P92.5", "R90.8", "Q66.8", "Q67.4", "Q10.3", "P92.8", "Q54.8", "P22.8", "P08.1", "P07.3", "P13.1", 
+                        "P55.0", "P92.5", "R90.8", "Q66.8", "Q67.4", "Q10.3", "P92.8", "Q54.8", "P08.1", "P07.3", "P13.1", "R25.1", 
                         "P12.8", "P14.3", "D23.4", "D23.9", "R01.2", "P70.4", "P80.8", "P51.8", "R68.8", "P15.8", "Z84.8", "L81.8", "P59.0",
                         "P81.8", "R19.88", "P72.8", "S09.8", "P96.8", "K00.8", "P94.8", "R23.8", "N83.2", "R39.8", "R29.8", "K09.8", 
                         "X59.9", "R50.88", "Z11", "U99.0", "P81.9", "K00.6", "P70.1", "P70.0", "R00.0", "M43.6", "P70.9", "P61.0", "E16.2",
-                        "P92.2", "P08.0", "P12.4", "R60.0", "R69", "W64.9", "Z04.3", "R23.4", "T81.2", "P96.3", "L22", "Z38.3", "Z38.5", "Y69")
+                        "P92.2", "P08.0", "P12.4", "R60.0", "R69", "W64.9", "Z04.3", "R23.4", "T81.2", "P96.3", "L22", "Z38.3", "Z38.5", "Y69", "Z83.3")
 
-# 3.4.4 Neonatal diagnoses -------------------------------------------------
+## Exclude diagnoses: 
+Exclude_icd_codes <- c("R93.4", "R93.1", "R93.0", "R93.3", "R94.8", "R94.3", "H27.9", "Q24.9", "Q04.0", "Q62.0", "P83.5", "Q62.2", "Q82.5", "R34", "P21.9", "P22.9", "Z82",
+                       "U07.1", "P76.9", "Q21.2", "Q50.1", "Z38.1", "P12.2", "B96.2", "P05.2", "P50.1", "P39.3", "P39.4", "P29.1", "G93.0", "Q54.9", "P39.9", "Z86.1", "P39.2",
+                       "P20.1", "P20.9", "P05.9", "Z29.0", "P39.1", "Z86.2", "Z86.7", "P21.1", "Q36.9", "E84.1", "Q02", "Q60.0", "Q61.4", "Q53.1", "Q25.0", "P29.3", "P61.1",
+                       "P04.0", "P02.7", "P03.3", "P03.0", "P00.0", "P01.2", "P01.3", "P03.4", "P02.5", "P02.1", "P03.1", "P04.1", "P03.8", "P02.2", "P02.6", "P04.2",
+                       "P01.1", "P03.2", "P21.0", "R90.8", "P28.4", "P22.8", "P29.8", "I78.8", "R39.1", "R76.8", "H21.8", "H11.8", "H02.8", "H57.8", "Q89.8", "Q82.8", 
+                       "Q15.8", "Q64.8", "Q17.8", "P54.8", "P61.8", "P39.8", "K06.8", "L98.8", "N28.8", "H61.8", "P78.8", "P83.8", "P28.8", "R06.88", "I63.8", "P76.8", 
+                       "Q17.3", "Q35.3", "B95.6", "P28.9", "P28.8", "Q70.9", "P22.1", "Q21.0", "Q21.1", "Z38.5", "M54.2", "P28.2")
 
-## Include codes without unsure diagnoses:
-# Include_codes <- c("P55.1", "R63.4", "Z83.4", "Z83.5", "P54.6", "H11.3", "P83.4", "L81.3", "U07.2", "Z83.3", "Z38.0", "P92.0", "P83.1", "L53.0", "R25.3", "P05.2", 
-#                    "R14", "P05.1", "P05.0", "K21.9", "P12.1", "P12.9", "P15.3", "P15.4", "Q54.0", "D18.01", "D18.05", "P78.2", "P54.5", "P39.4", "K40.90", "K42.9", 
-#                    "R05", "Q54.9", "P80.9", "P12.0", "P39.1", "Z84.3", "P90", "Z84.1", "P83.9", "R22.0", "R22.2", "R22.3", "R59.0", "D22.6", "D22.5", "D22.3", 
-#                    "D22.9", "Q70.2", "P08.2", "D48.5", "P58.1", "P58.8", "P59.8", "P59.9", "U99.0", "Q53.1", "Z24.6", "P38", "T14.03", "L05.9", "Q18.1", "Z81", 
-#                    "P92.1", "P55.0", "P04.0", "P02.7", "P03.3", "P03.0", "P00.0", "P01.2", "P01.3", "P03.4", "P02.5", "P02.1", "P03.1", "P04.1", "P03.8", "P02.2", 
-#                    "P02.6", "P04.2", "P01.1", "P03.2", "P92.5", "P92.8", "Q54.8", "P08.1", "P13.1", "P12.8", "P14.3", "D23.4", "D23.9", "R01.2", "P70.4", "P80.8", 
-#                    "R39.1", "P51.8", "R76.8", "H21.8", "H11.8", "H02.8", "H57.8", "R68.8", "P15.8", "Z84.8", "P83.8", "L81.8", "P81.8", "R19.88", "P72.8", "S09.8", 
-#                    "P96.8", "K00.8", "P94.8", "R23.8", "K09.8", "N83.2", "R39.8", "R29.8", "X59.9", "Q17.3", "Z11", "U99.0", "P81.9", "K00.6", "P70.1", "P70.0", 
-#                    "R00.0", "R00.1", "M43.6", "P70.9", "P92.2", "P08.0", "P12.4", "R60.0", "R69", "W64.9", "Z04.3", "R23.4", "T81.2", "P96.3", "L22", "Z38.3", 
-#                    "Z38.5", "Y69", "E16.2", "P59.0", "P59.8.")
+Newborns_excluded_diagnoses <- Sample2_dia_neonatal %>%
+  filter(DIA_NK %in% Exclude_icd_codes) %>%  # 1337 
+  distinct(patient_id_child, case_id_child) # 1110 cases, these are to exclude
 
-Sample2_dia_neonatal2 <- Sample2_dia_neonatal %>%
-  filter(DIA_NK %in% Included_icd_codes) # 10594
+Sample3 <- anti_join(Sample2, Newborns_excluded_diagnoses, by = c("patient_id_child", "case_id_child")) # 5726, cleaned data set with newborns with allowed diganoses 
 
 
 ## HHH RELEAVANT DIAGNOSES
@@ -446,70 +437,57 @@ Hypoglycaemia_icd <- c("P70.4", "E16.2")
 Hyperbilirubinaemia_icd <- c("P58.1", "P58.8", "P59.0", "P59.8", "P59.9")
 
 ## HHH RELEVANT RISK FACTORS (NEONATAL/MATERNAL)
-# 1. Hypothermia: P07.3, P70.4, E16.2, P05.0, P81.8, P81.9 / Sectio (mode of delivery), age of mother, race/ethnicity
-# 2. Hypoglycaemia: P70.0, P70.1, P70.9, P80.8, P80.9, P58.1, P58.8, P59.0, P59.8, P59.9, P05.0, P07.3, P08.0, P08.1, R63.4, P92.5, P92.2, P92.8, Q38.1 
+# 1. Hypothermia: P07.3, P70.4, E16.2, P05.0, P05.1, P81.8, P81.9 / Sectio (mode of delivery), age of mother, race/ethnicity
+# 2. Hypoglycaemia: P70.0, P70.1, P70.9, P80.8, P80.9, P58.1, P58.8, P59.0, P59.8, P59.9, P05.0, P05.1, P07.3, P08.0, P08.1, R63.4, P92.5, P92.2, P92.8, Q38.1 
 # / O24.0, O24.1, O24.4, E10.90, E10.91, E11.20, E11.90, E11.91, E13.90, E13.91, E14.90, sectio (mode of delivery), parity
-# 3. Hyperbilirubinaemia: P07.3, D55.0, P55.0, P55.1, P12.0, Z83.2, P92.5, P92.2, P92.8, R63.4, Q38.1, P80.8, P80.9, P70.4, E16.2 
+# 3. Hyperbilirubinaemia: P07.3, D55.0, P55.0, P55.1, P12.0, Z83.2, P92.5, P92.2, P92.8, R63.4, Q38.1, P80.8, P80.9, P70.4, E16.2, P05.1 
 # / age of mother, O24.0, O24.1, O24.4, E10.90, E10.91, E11.20, E11.90, E11.91, E13.90, E13.91, E14.90, race/ethnicity, D55.0
 
-Hypothermia_risk_icd <- c("P07.3", "P70.4", "E16.2", "P05.0", "P81.8", "P81.9")
-Hypoglycaemia_risk_icd <- c("P70.0", "P70.1", "P70.9", "P80.8", "P80.9", "P58.1", "P58.8", "P59.0", "P59.8", "P59.9", "P05.0", "P07.3", "P08.0", "P08.1", "R63.4", "P92.5", "P92.2", "P92.8", "Q38.1")
-Hyperbilirubinaemia_risk_icd <- c("P07.3", "D55.0", "P55.0", "P55.1", "P12.0", "Z83.2", "P92.5", "P92.2", "P92.8", "R63.4", "Q38.1", "P80.8", "P80.9", "P70.4", "E16.2")
+Hypothermia_risk_icd <- c("P07.3", "P70.4", "E16.2", "P05.0", "P05.1", "P81.8", "P81.9")
+Hypoglycaemia_risk_icd <- c("P70.0", "P70.1", "P70.9", "Z83.3", "P80.8", "P80.9", "P58.1", "P58.8", "P59.0", "P59.8", "P59.9", "P05.0", "P05.1", "P07.3", "P08.0", "P08.1", "R63.4", "P92.5", "P92.2", "P92.8", "Q38.1")
+Hyperbilirubinaemia_risk_icd <- c("P07.3", "D55.0", "P55.0", "P55.1", "P12.0", "Z83.2", "Z83.3", "P92.5", "P92.2", "P92.8", "R63.4", "Q38.1", "P80.8", "P80.9", "P70.4", "E16.2", "P05.1")
 
 ## ICD codes related to HHH summarised
 HHH_diagnoses_icd <- c(Hypothermia_icd, Hypoglycaemia_icd, Hyperbilirubinaemia_icd)
 HHH_risk_icd <- c(Hypothermia_risk_icd, Hypoglycaemia_risk_icd, Hyperbilirubinaemia_risk_icd)
 
-# 3.4.4.1 Sample without RF -------------------------------------------------------
+# 3.4.4.1 Grouping of newborns into HHH/risk factor groups -------------------------------------------------------
+# Merge Sample 3 (cleaned sample set) with diagnoses data to start
+Sample3_filtered_icd <- left_join(Sample3, Diagnose_red2_corr, by = c("patient_id_child" = "patient_id", "case_id_child" = "case_id")) %>% 
+  select(patient_id_child, case_id_child, DIA_NK, ICD_labels)
 
-# To identify newborns only with diagnosis "Einling, Geburt im Krankenhaus", "Zwilling, Geburt im Krankenhaus"
-Newborn_Z38.0 <- Sample2_dia_neonatal2 %>%
-  filter(DIA_NK %in% c("Z38.0", "Z38.3")) %>% 
-  distinct(patient_id_child, case_id_child, DIA_NK) %>% 
-  mutate(Birth_type = case_when(DIA_NK %in% "Z38.0" ~ "Singleton_birth_hospital",
-                                DIA_NK %in% "Z38.3" ~ "Twin_birth_hospital")) # 6833
+# Identify newborns with a H diagnosis 
+Newborn_with_H <- Sample3_filtered_icd %>% 
+  group_by(patient_id_child, case_id_child) %>% 
+  filter(any(DIA_NK %in% HHH_diagnoses_icd)) %>% 
+  ungroup() # 775 
 
-# To identify newborn only with diagnosis "Einling, Geburt im Krankenhaus" and "Zwilling, Geburt im Krankenhaus" and HHH diagnoses if there is one
-Newborn_HHH <- Sample2_dia_neonatal2 %>%
-  filter(DIA_NK %in% HHH_diagnoses_icd)  # 395 --> there are also cases with more than one diagnose, so distinct() is not meaniful!
+# Clean up the risk factor list - remove the HHH diagnoses from the risk factors
+Newborn_with_rf <- setdiff(HHH_risk_icd, HHH_diagnoses_icd)
 
-# Step 1, to identify newborns with a HHH diagnoses
-Newborn_hypothermia <- Sample2_dia_neonatal2 %>%
-  filter(DIA_NK %in% Hypothermia_icd) %>%
-  distinct(patient_id_child, case_id_child) %>%
-  mutate(Diag_Hypothermia = TRUE) # 144
+# All newborns to select to go further the next steps
+All_newborns <- Sample3_filtered_icd %>% 
+  group_by(patient_id_child, case_id_child)
 
-Newborn_hypoglycaemia <- Sample2_dia_neonatal2 %>%
-  filter(DIA_NK %in% Hypoglycaemia_icd) %>%
-  distinct(patient_id_child, case_id_child) %>%
-  mutate(Diag_Hypoglycaemia = TRUE) # 207
+# Newborns with HHH diagnoses but without other risk factors
+Newborn_with_HHH <- All_newborns %>%
+  filter(any(DIA_NK %in% HHH_diagnoses_icd) & !any(DIA_NK %in% Newborn_with_rf)) %>% # at least on H diagnosis, no rf
+  ungroup()
 
-Newborn_hyperbili <- Sample2_dia_neonatal2 %>%
-  filter(DIA_NK %in% Hyperbilirubinaemia_icd) %>%
-  distinct(patient_id_child, case_id_child) %>%
-  mutate(Diag_Hyperbili = TRUE) # 44
+# Newborns with HHH diagnoses and other rf relevant to HHH
+Newborn_with_HHH_rf <- All_newborns %>%
+  filter(any(DIA_NK %in% HHH_diagnoses_icd) & any(DIA_NK %in% Newborn_with_rf)) %>%
+  ungroup()
 
-Sample_without_rf <- Sample2 %>% 
-  left_join(Newborn_Z38.0, by = c("patient_id_child", "case_id_child")) %>%
-  left_join(Newborn_hypothermia, by = c("patient_id_child", "case_id_child")) %>%
-  left_join(Newborn_hypoglycaemia, by = c("patient_id_child", "case_id_child")) %>%
-  left_join(Newborn_hyperbili, by = c("patient_id_child", "case_id_child")) %>% 
-  mutate(Diag_Hypothermia = ifelse(is.na(Diag_Hypothermia), FALSE, Diag_Hypothermia),
-         Diag_Hypoglycaemia = ifelse(is.na(Diag_Hypoglycaemia), FALSE, Diag_Hypoglycaemia),
-         Diag_Hyperbili = ifelse(is.na(Diag_Hyperbili), FALSE, Diag_Hyperbili),
-         Diag_HHH = Diag_Hypothermia | Diag_Hypoglycaemia | Diag_Hyperbili,
-         Birth_type = case_when(DIA_NK == "Z38.0" ~ "Singleton_birth_hospital", DIA_NK == "Z38.3" ~ "Twin_birth_hospital", TRUE ~ "Other_or_missing")) # 6836
+# Newborns without a HHH diagnosis but rf relevant to HHH
+Newborn_no_HHH_with_rf <- All_newborns %>%
+  filter(!any(DIA_NK %in% HHH_diagnoses_icd) & any(DIA_NK %in% Newborn_with_rf)) %>%
+  ungroup()
 
-
-
-# # Rename the vriables
-# Sample_without_rf <- Sample_without_rf %>%
-#   mutate(Z38_0 = case_when(Diag_Z38_0 == TRUE ~ "Singleton_birth_hospital", TRUE ~ "Other_Missing"),
-#          Hypothermia = case_when(Diag_Hypothermia == TRUE ~ "Hypothermia_y", TRUE ~ "Hypothermia_n"),
-#          Hypoglycaemia = case_when(Diag_Hypoglycaemia == TRUE ~ "Hypoglycaemia_y", TRUE ~ "Hypoglycaemia_n"),
-#          Hyperbilirubinaemia = case_when(Diag_Hyperbili == TRUE ~ "Hyperbili_y", TRUE ~ "Hyperbili_n"),
-#          HHH_status = case_when(Diag_HHH == TRUE ~ "HHH_diagnoses_y", TRUE ~ "HHH_diagnoses_no")) %>% 
-#   select(- Diag_Z38_0, - Diag_Hypothermia, - Diag_Hypoglycaemia, - Diag_Hyperbili, - Diag_HHH)
+# Newborns neither a HHH diagnosis nor a rf relevant for HHH
+Newborn_fully_healthy <- All_newborns %>%
+  filter(!any(DIA_NK %in% HHH_diagnoses_icd) & !any(DIA_NK %in% Newborn_with_rf)) %>%
+  ungroup()
 
 ## Include codes with unsure diagnoses:
 # Include_codes2 <- c("P55.1", "R63.4", "Z83.4", "Z83.5", "P54.6", "H11.3", "P83.4", "L81.3", "U07.2", "Z83.3", "Z38.0", "P92.0", "P83.1", "L53.0", "R25.3", "P05.2", 
