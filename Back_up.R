@@ -317,7 +317,16 @@ rm(Lookup1, Check_case_id, Check_pat_id, Check_stillbirth, Weight_exclude, Conse
 # - (Merging with icds)
 # - Merging with temp data, Meona data bili and glucose
 
-# 3.4.3 Newborn transfer -----------------------------------------------------
+
+# 3.4.3 Mode of delivery --------------------------------------------------
+## -> I will get the data
+
+
+# 3.4.4 Nutrition ---------------------------------------------------------
+## -> I will get the data
+
+
+# 3.4.5 Newborn transfer -----------------------------------------------------
 # LOS data (extracted from Movement data, only newborns admitted to the Muki and discharged from Muki)
 ## Overview
 summary(LOS_newborns) # 9268
@@ -387,6 +396,304 @@ Check_id_sample2_mo2 <- Sample2 %>%
 
 rm(Check_id_sample2_child, Check_id_sample2_child2, Check_id_sample2_mo, Check_id_sample2_mo2, Sample1, Labour_dis_nicu, Sample2_isna_transfer)
 
+
+# 3.4.6 Neonatal diagnoses -------------------------------------------------
+
+# Merge Sample with diagnose data
+Sample2_dia_neonatal <- left_join(Sample2, Diagnose_red2_corr, by = c("patient_id_child" = "patient_id", "case_id_child" = "case_id")) %>% 
+  select(patient_id_child, case_id_child, DIA_NK, ICD_labels)
+
+table(Sample2_dia_neonatal$ICD_labels) # overview diagnoses
+
+## Include diagnoses: 
+Included_icd_codes <- c("P55.1", "R63.4", "Q83.3", "Q69.2", "Z83.4", "Q82.5", "Q38.1", "Z83.5", "R01.0", "Z03.8", "Z03.3", "Z03.5", 
+                        "P54.6", "H11.3", "R00.1", "P83.4", "L81.3", "U07.2", "Z38.0", "P92.0", "P91.1", "L53.0", "P83.1", "R25.3", 
+                        "R50.80", "R50.9", "R14", "P05.1", "P05.0", "K21.9", "P12.1", "P15.5", "P12.9", "P15.3", "P15.4", "P13.8", 
+                        "Q54.0", "D18.01", "D18.05", "P78.2", "P54.5", "K40.90", "K42.9", "R01.1", "R05", "P80.9", "Z83.1", "P12.0", 
+                        "Z84.3", "Z20.6", "Z20.8", "Z20.5", "P90", "Z84.1", "Z83.2", "P83.9", "K13.2", "R22.0", "R22.2", 
+                        "R22.3", "R59.0", "D22.6", "D22.5", "D22.3", "D22.9", "Q70.2", "P08.2", "D48.5", "P07.12", "P58.1", "P58.8", 
+                        "P59.8", "P59.9", "Z24.6", "P38", "T14.03", "Q66.2", "Q66.4", "Q66.0", "L05.9", "Q18.1", "Z81", "P92.1", "D55.0",
+                        "P55.0", "P92.5", "R90.8", "Q66.8", "Q67.4", "Q10.3", "P92.8", "Q54.8", "P08.1", "P07.3", "P13.1", "R25.1", 
+                        "P12.8", "P14.3", "D23.4", "D23.9", "R01.2", "P70.4", "P80.8", "P51.8", "R68.8", "P15.8", "Z84.8", "L81.8", "P59.0",
+                        "P81.8", "R19.88", "P72.8", "S09.8", "P96.8", "K00.8", "P94.8", "R23.8", "N83.2", "R39.8", "R29.8", "K09.8", 
+                        "X59.9", "R50.88", "Z11", "U99.0", "P81.9", "K00.6", "P70.1", "P70.0", "R00.0", "M43.6", "P70.9", "P61.0", "E16.2",
+                        "P92.2", "P08.0", "P12.4", "R60.0", "R69", "W64.9", "Z04.3", "R23.4", "T81.2", "P96.3", "L22", "Z38.3", "Z38.5", "Y69", "Z83.3")
+
+
+## Exclude diagnoses: 
+Exclude_icd_codes <- c("R93.4", "R93.1", "R93.0", "R93.3", "R94.8", "R94.3", "H27.9", "Q24.9", "Q04.0", "Q62.0", "P83.5", "Q62.2", "Q82.5", "R34", "P21.9", "P22.9", "Z82",
+                       "U07.1", "P76.9", "Q21.2", "Q50.1", "Z38.1", "P12.2", "B96.2", "P05.2", "P50.1", "P39.3", "P39.4", "P29.1", "G93.0", "Q54.9", "P39.9", "Z86.1", "P39.2",
+                       "P20.1", "P20.9", "P05.9", "Z29.0", "P39.1", "Z86.2", "Z86.7", "P21.1", "Q36.9", "E84.1", "Q02", "Q60.0", "Q61.4", "Q53.1", "Q25.0", "P29.3", "P61.1",
+                       "P04.0", "P02.7", "P03.3", "P03.0", "P00.0", "P01.2", "P01.3", "P03.4", "P02.5", "P02.1", "P03.1", "P04.1", "P03.8", "P02.2", "P02.6", "P04.2",
+                       "P01.1", "P03.2", "P21.0", "R90.8", "P28.4", "P22.8", "P29.8", "I78.8", "R39.1", "R76.8", "H21.8", "H11.8", "H02.8", "H57.8", "Q89.8", "Q82.8", 
+                       "Q15.8", "Q64.8", "Q17.8", "P54.8", "P61.8", "P39.8", "K06.8", "L98.8", "N28.8", "H61.8", "P78.8", "P83.8", "P28.8", "R06.88", "I63.8", "P76.8", 
+                       "Q17.3", "Q35.3", "B95.6", "P28.9", "P28.8", "Q70.9", "P22.1", "Q21.0", "Q21.1", "Z38.5", "M54.2", "P28.2")
+
+Newborns_excluded_diagnoses <- Sample2_dia_neonatal %>%
+  filter(DIA_NK %in% Exclude_icd_codes) %>%  # 1337 
+  distinct(patient_id_child, case_id_child) # 1110 cases, these are to exclude
+
+Sample3 <- anti_join(Sample2, Newborns_excluded_diagnoses, by = c("patient_id_child", "case_id_child")) # 5726, cleaned data set with newborns with allowed diganoses 
+
+
+## HHH RELEAVANT DIAGNOSES
+# 1. Hypothermia: P80.0, P80.8, P80.9
+# 2. Hypoglycaemia: P70.4, E16.2
+# 3. Hyperbilirubinaemia: P58.1, P58.8, P59.0, P59.8., P59.9
+
+# ICD-10 codes
+## Diagnoses
+Hypothermia_icd <- c("P80.0", "P80.8", "P80.9")
+Hypoglycaemia_icd <- c("P70.4", "E16.2")
+Hyperbilirubinaemia_icd <- c("P58.1", "P58.8", "P59.0", "P59.8", "P59.9")
+
+## HHH RELEVANT RISK FACTORS (NEONATAL/MATERNAL)
+# 1. Hypothermia: P07.3, P70.4, E16.2, P05.0, P05.1, P81.8, P81.9 / Sectio (mode of delivery), age of mother, race/ethnicity
+# 2. Hypoglycaemia: P70.0, P70.1, P70.9, P80.8, P80.9, P58.1, P58.8, P59.0, P59.8, P59.9, P05.0, P05.1, P07.3, P08.0, P08.1, R63.4, P92.5, P92.2, P92.8, Q38.1 
+# / O24.0, O24.1, O24.4, E10.90, E10.91, E11.20, E11.90, E11.91, E13.90, E13.91, E14.90, sectio (mode of delivery), parity
+# 3. Hyperbilirubinaemia: P07.3, D55.0, P55.0, P55.1, P12.0, Z83.2, P92.5, P92.2, P92.8, R63.4, Q38.1, P80.8, P80.9, P70.4, E16.2, P05.1 
+# / age of mother, O24.0, O24.1, O24.4, E10.90, E10.91, E11.20, E11.90, E11.91, E13.90, E13.91, E14.90, race/ethnicity, D55.0
+
+Hypothermia_risk_icd <- c("P07.3", "P70.4", "E16.2", "P05.0", "P05.1", "P81.8", "P81.9")
+Hypoglycaemia_risk_icd <- c("P70.0", "P70.1", "P70.9", "Z83.3", "P80.8", "P80.9", "P58.1", "P58.8", "P59.0", "P59.8", "P59.9", "P05.0", "P05.1", "P07.3", "P08.0", "P08.1", "R63.4", "P92.5", "P92.2", "P92.8", "Q38.1")
+Hyperbilirubinaemia_risk_icd <- c("P07.3", "D55.0", "P55.0", "P55.1", "P12.0", "Z83.2", "Z83.3", "P92.5", "P92.2", "P92.8", "R63.4", "Q38.1", "P80.8", "P80.9", "P70.4", "E16.2", "P05.1")
+
+## ICD codes related to HHH summarised
+HHH_diagnoses_icd <- c(Hypothermia_icd, Hypoglycaemia_icd, Hyperbilirubinaemia_icd)
+HHH_risk_icd <- c(Hypothermia_risk_icd, Hypoglycaemia_risk_icd, Hyperbilirubinaemia_risk_icd)
+
+# 3.4.6.1 Grouping of newborns into HHH/risk factor groups -------------------------------------------------------
+# Merge Sample 3 (cleaned sample set) with diagnoses data to start
+Sample3_filtered_icd <- left_join(Sample3, Diagnose_red2_corr, by = c("patient_id_child" = "patient_id", "case_id_child" = "case_id")) %>% 
+  select(patient_id_child, case_id_child, DIA_NK, ICD_labels)
+
+# Identify newborns with a H diagnosis 
+Newborn_with_HHH <- Sample3_filtered_icd %>% 
+  group_by(patient_id_child, case_id_child) %>% 
+  filter(any(DIA_NK %in% HHH_diagnoses_icd)) %>% 
+  ungroup() # 775 
+
+Newborn_with_risk <- Sample3_filtered_icd %>% 
+  group_by(patient_id_child, case_id_child) %>% 
+  filter(any(DIA_NK %in% HHH_risk_icd)) %>% 
+  ungroup() # 4245; but those codes that are exclusively risk factors but are not themselves HHH diagnoses need to be identified, because Hs influence each other
+
+# Clean up the risk factor list - remove the HHH diagnoses from the neonatal risk factors
+Newborn_with_rf <- setdiff(HHH_risk_icd, HHH_diagnoses_icd) # Calculates the difference between two vectors
+
+# Build all newborns to go further the next steps
+All_newborns <- Sample3_filtered_icd %>% 
+  group_by(patient_id_child, case_id_child) # 8899
+
+# Newborns with HHH diagnoses but without other relevant neonatal risk factors
+Newborn_with_HHH <- All_newborns %>%
+  filter(any(DIA_NK %in% HHH_diagnoses_icd) & !any(DIA_NK %in% Newborn_with_rf)) %>% # at least on H diagnosis, no rf
+  ungroup() # 308
+
+# Newborns with HHH diagnoses and other neonatal rf relevant to HHH
+Newborn_with_HHH_rf <- All_newborns %>%
+  filter(any(DIA_NK %in% HHH_diagnoses_icd) & any(DIA_NK %in% Newborn_with_rf)) %>%
+  ungroup() # 467
+
+# Newborns without a HHH diagnosis but neonatal rf relevant to HHH
+Newborn_no_HHH_with_rf <- All_newborns %>%
+  filter(!any(DIA_NK %in% HHH_diagnoses_icd) & any(DIA_NK %in% Newborn_with_rf)) %>%
+  ungroup() # 3470
+
+# Newborns neither a HHH diagnosis nor a neonatal rf relevant for HHH
+Newborn_fully_healthy <- All_newborns %>%
+  filter(!any(DIA_NK %in% HHH_diagnoses_icd) & !any(DIA_NK %in% Newborn_with_rf)) %>%
+  ungroup() # 4654
+
+
+# 3.4.7 Maternal Risk factors HHH ------------------------------------------------------
+
+# 1. Hypoglycaemia: Maternal diabetes, Caesariean secion (mode of delivery), Parity
+# 2. Hyperbilirubinaemia: Maternal age, Maternal diabetes, (Race/Ethnicity) -> Anämie durch Glukose-6-Phosphat-Dehydrogenase[G6PD]-Mangel
+# 3. Hypothermia: (Race/ethnicity), maternal age, parity, Ceasarean sectio (mode of delivery)
+
+# 3.4.7.1 Parity ----------------------------------------------------------
+
+Parity <- parity1 %>% 
+  mutate(RF_parity = if_else(Anzahl_vorausg_LebGeb == 0, "Primi", "Multi"))
+
+# Merge with Sample 3
+Sample3 <- left_join(Sample3, Parity, by = c("patient_id_child", "case_id_child" = "case_id", "patient_id_mother", "case_id_mother")) %>% 
+  select(-Anzahl_vorausg_SS, -Anzahl_vorausg_LebGeb, -Anzahl_fehl_Geb, -Anzahl_Interruptio)
+
+# 3.4.7.2 Maternal age ----------------------------------------------------
+Mother_data <- left_join(Sample3, Pat_info, by = c("patient_id_mother" = "patient_id", "case_id_mother" = "case_id"), relationship = "many-to-many") %>% 
+  select(patient_id_mother, case_id_mother, PAT_BIRTH_DATE, CBIS_BIRTH_DATE_TS, PAT_CITIZENSHIP_COUNTRY) # %>% 
+  # distinct(patient_id_mother, .keep_all = TRUE)
+
+Mother_data <- Mother_data %>%
+  distinct(patient_id_mother, case_id_mother, .keep_all = TRUE) # remove duplicates, 6849
+
+Mother_data <- Mother_data %>% 
+  mutate(Birth_date = as.Date(CBIS_BIRTH_DATE_TS)) %>%
+  mutate(RF_Maternal_age = interval(start = PAT_BIRTH_DATE, end = Birth_date) / duration(n = 1, unit = "years"))
+summary(Mother_data$RF_Maternal_age)
+# Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+# 14.55   30.50   33.78   33.54   36.91   52.37
+
+Underage <- Mother_data %>% 
+  filter(RF_Maternal_age < 18) # 8 cases
+
+Sample3 <- left_join(Sample3, Mother_data, by = c("patient_id_mother", "case_id_mother")) %>% # without date of birth!
+  select(- Birth_date, - PAT_BIRTH_DATE, - CBIS_BIRTH_DATE_TS.y) %>% 
+  rename(CBIS_BIRTH_DATE_TS = CBIS_BIRTH_DATE_TS.x)
+summary(Sample3$RF_Maternal_age)
+# Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+# 14.55   30.50   33.78   33.54   36.91   52.37
+
+rm(Sample2, Mother_data, Underage, Parity)
+
+# 3.4.7.3 Origin --------------------------------------------------
+## From Luisa 
+Countries_FOS <- readxl::read_excel( "I:/Verwaltung/MaNtiS/01_Rohdaten/FOS_countries_categories.xlsx")
+Countries_FOS <- janitor::clean_names(Countries_FOS) ## to clean column names
+## Import adapated original data with correct country names for merging with FOS data
+Countries1 <- read_csv( "I:/Verwaltung/MaNtiS/01_Rohdaten/Countries_categories.csv", show_col_types = F) # set `show_col_types = FALSE` to quiet the message
+
+Countries_FOS1 <- Countries_FOS %>% 
+  select(landercode_bfs_code_des_pays_ofs_codice_del_paese_ust, iso2, iso3, de_kurzform, kontinent_continent_continente, region_region_regione)
+
+Countries1 <- Countries1 %>% 
+  select(PAT_CITIZENSHIP_COUNTRY, pat_citizenship_country_new, )
+
+## Merge country names from data with country names from FOS
+Countries2 <- left_join(Countries1, Countries_FOS1, by = c( "pat_citizenship_country_new" = "de_kurzform"))
+
+## Build counties categories 
+Countries2b <- Countries2 %>% 
+  mutate(Country = case_when(
+    pat_citizenship_country_new == "Schweiz" ~ "Switzerland",
+    kontinent_continent_continente == 1 ~ "Europe",
+    kontinent_continent_continente == 2 ~ "Africa",
+    kontinent_continent_continente == 3 ~ "America",
+    kontinent_continent_continente == 4 ~ "Asia",
+    kontinent_continent_continente == 5 ~ "Oceania",
+    TRUE ~ "Unknown")) # when NA then unknown
+
+# Combine with Sample 3
+Sample3<- left_join(Sample3, Countries2b, by = "PAT_CITIZENSHIP_COUNTRY") %>% 
+  select(- PAT_CITIZENSHIP_COUNTRY, - pat_citizenship_country_new, -landercode_bfs_code_des_pays_ofs_codice_del_paese_ust, 
+         -iso2, -iso3, -region_region_regione, - kontinent_continent_continente) 
+
+table(Sample3$Country) 
+# Africa     America        Asia      Europe     Oceania Switzerland     Unknown 
+# 216         157         431        2474          12        2423          13 
+round(prop.table(table(as.factor(Sample3$Country))) * 100, 1)
+# Africa     America        Asia      Europe     Oceania Switzerland     Unknown 
+# 3.8         2.7         7.5        43.2         0.2        42.3         0.2 
+
+
+# 3.4.7.4 Maternal Diagnoses ----------------------------------------------
+## Merge with Sample 3
+Sample_maternal_rf <- left_join(Sample3, Diagnose_red2_corr, by = c("patient_id_mother" = "patient_id", "case_id_mother" = "case_id"), relationship = "many-to-many") %>%
+  select(- DIG_DATE_TS, - DIG_RANK, - DIG_TARGET_SITE, - DIA_BK, - ICD_groups) %>% 
+  rename(DIA_NK_maternal= DIA_NK, ICD_labels_maternal = ICD_labels) %>%
+  relocate(DIA_NK_maternal, ICD_labels_maternal, .after = admission_neo_n) %>%
+  relocate(Country, .after = case_id_child) # 45544 -> no mother has g6pd!
+
+## ICD-10
+# Maternal_RF_hypoglyc_icd <- c("O24.0", "O24.1", "O24.4", "E10.90", "E10.91", "E11.20", "E11.90", "E11.91", "E13.90", "E13.91","E14.90")
+# Maternal_RF_hyperbili_icd <- c("D55.0", "O24.0", "O24.1", "O24.4", "E10.90", "E10.91", "E11.20", "E11.90", "E11.91", "E13.90", "E13.91","E14.90")
+# Maternal_RF_g6pd <- "D55.0"
+Maternal_RF_icd <- c("D55.0", "O24.0", "O24.1", "O24.4", "E10.90", "E10.91", "E11.20", "E11.90", "E11.91", "E13.90", "E13.91","E14.90")
+Maternal_GDM_icd <- c("O24.4")
+Maternal_DM_icd <- c("O24.0", "O24.1", "E10.90", "E10.91", "E11.20", "E11.90", "E11.91", "E13.90", "E13.91", "E14.90")
+
+# Identify cases with maternal risk factors
+Maternal_RF_cases <- Sample_maternal_rf %>%
+  filter(DIA_NK_maternal %in% Maternal_RF_icd) %>%
+  distinct(patient_id_mother) %>%
+  mutate(Has_maternal_rf = TRUE) # 724
+
+# Identify mother with gdm and dm type
+Maternal_DM <- Sample_maternal_rf %>%
+  mutate(maternal_gdm = DIA_NK_maternal %in% Maternal_GDM_icd, maternal_DM  = DIA_NK_maternal %in% Maternal_DM_icd) %>%
+  group_by(patient_id_mother) %>%
+  summarise(maternal_gdm = any(DIA_NK_maternal %in% Maternal_GDM_icd), maternal_DM = any(DIA_NK_maternal %in% Maternal_DM_icd)) # 5299
+
+Maternal_DM2 <- Sample_maternal_rf %>% 
+  group_by(patient_id_mother) %>% 
+  summarise(maternal_gdm = any(DIA_NK_maternal %in% Maternal_GDM_icd), maternal_DM = any(DIA_NK_maternal %in% Maternal_DM_icd)) %>%
+  mutate(Maternal_diabetes_type = case_when(maternal_gdm == TRUE & maternal_DM == TRUE ~ "DM_GDM",
+                                            maternal_gdm == TRUE ~ "GDM", 
+                                            maternal_DM == TRUE ~ "preex_DM", TRUE ~ "No_diabetes"))
+
+# Simple with yes or no maternal RF
+Sample3_j <- left_join(Sample3, Maternal_RF_cases, by = "patient_id_mother") %>%
+  mutate(Has_maternal_rf = if_else(is.na(Has_maternal_rf), "No", "Yes"))
+
+# Differentiated in diabetes type
+Sample3 <- left_join(Sample3, Maternal_DM2, by = "patient_id_mother") %>% 
+  mutate(Maternal_diabetes_type = factor(Maternal_diabetes_type, levels = c("No_diabetes", "GDM", "preex_DM", "DM_GDM"))) %>% 
+  select(-maternal_DM, -maternal_gdm)
+  
+## Merge together the different newborn groups and prepared dataset (Sample3)
+Newborn_group1 <- left_join(Newborn_with_HHH, Sample3, c("patient_id_child", "case_id_child")) %>% 
+  distinct(patient_id_child, case_id_child, .keep_all = T) # 136, with HHH diagnosis but without rf
+Newborn_group2 <- left_join(Newborn_with_HHH_rf, Sample3, c("patient_id_child", "case_id_child")) %>% 
+  distinct(patient_id_child, case_id_child, .keep_all = T) # 137, with HHH diagnosis and rf
+Newborn_group3 <- left_join(Newborn_no_HHH_with_rf, Sample3, c("patient_id_child", "case_id_child")) %>% 
+  distinct(patient_id_child, case_id_child, .keep_all = T) # 1468
+Newborn_group4 <- left_join(Newborn_fully_healthy, Sample3, c("patient_id_child", "case_id_child")) %>% 
+  distinct(patient_id_child, case_id_child, .keep_all = T) # 3967
+
+
+# 3.4.4.1 Hypoglycaemia categories ----------------------------------------
+source("~/Thesis/Code/01_03_02_Code_Newborn_Meona.R")
+
+summary(as.factor(Sample3$Hypoglycaemia_cat))
+# Mild       Moderate    No_measurement    Normoglycaemic     Severe 
+# 172             25           4311           2233            95 
+
+# 3.4.4.2 Hyperbilirubinaemia categories ----------------------------------------
+
+summary(as.factor(Sample3$Hyperbili_cat))
+# Hyperbili         No_measurement        Physiological_jaundice 
+# 55                687                   6094 
+## Conclusion: random check showed that there are cases with no documentation of bilirubin levels - so it was summarised that these would indicate also no measurement during hospital stay
+
+# 3.4.4.3 Hypothermia categories ----------------------------------------
+source("~/Thesis/Code/01_07_Code_Temp data.R")
+
+summary(as.factor(Sample3$Hypothermia_cat))
+# Mild    Moderate_Severe   Norm            NA's 
+# 982     532               5310            12   
+
+Missing_temp <- Sample3 %>% 
+  filter(is.na(Hypothermia_cat))
+## 5 cases yes Nicu admission (2 of them stayed for one hour in the postnatal unit), 6 of them ambulant/tagesklinik, 1 child no data entry
+
+Sample_test5 <- Sample3 %>% 
+  mutate(Hypothermia_cat = replace_na(Hypothermia_cat, "No_measurement"))
+
+
+# 3.4.4.4 Overview HHH  ---------------------------------------------------
+## To have an overview if a child has none, one, two or all HHH diagnoes
+# With Test sample
+Sample4 <- Sample3 %>%
+  rowwise() %>%  # to not sum all values in the whole column
+  mutate(hypoglyc_y = Hypoglycaemia_cat %in% c("Mild", "Moderate", "Severe"),
+         hyperbili_y = if_else(is.na(Hyperbili_cat), FALSE, Hyperbili_cat == "Hyperbili"),
+         hypotherm_y = if_else(is.na(Hypothermia_cat), FALSE, Hypothermia_cat %in% c("Mild", "Moderate_Severe")),
+         symptom_count = sum(c(hypoglyc_y, hyperbili_y, hypotherm_y), na.rm = TRUE),
+         HHH_diagnoses = case_when(
+           symptom_count == 0 ~ "None",
+           symptom_count == 1 & hypoglyc_y ~ "Hypoglyc_only",
+           symptom_count == 1 & hyperbili_y ~ "Hyperbili_only",
+           symptom_count == 1 & hypotherm_y ~ "Hypotherm_only",
+           symptom_count == 2 & hypoglyc_y & hyperbili_y ~ "Hypoglyc_Hyperbili",
+           symptom_count == 2 & hypoglyc_y & hypotherm_y ~ "Hypoglyc_Hypothermia",
+           symptom_count == 2 & hyperbili_y & hypotherm_y ~ "Hyperbili_Hypothermia",
+           symptom_count == 3 ~ "All_diagnoses",
+           TRUE ~ "Unknown")) %>% 
+  select(- hypoglyc_y, - hypotherm_y, - hyperbili_y, - symptom_count)
+
+table(Sample4$HHH_diagnoses)
 
 # 3.4.4 Neonatal diagnoses -------------------------------------------------
 # Merge Sample with diagnose data
@@ -1378,6 +1685,22 @@ round(prop.table(table(as.factor(Hypoglyc_data_cat2$Hypoglycaemia_cat))) * 100, 
 Sample2b <- left_join(Sample2, Hypoglyc_data_cat2, by = c("patient_id_child" = "patient_id", "case_id_child" = "case_id")) %>% 
   select(- pat_geb_dat, - alter_in_tagen)
 
+Sample3 <- left_join(Sample3, Hypoglyc_data_cat, by = c("patient_id_child" = "patient_id", "case_id_child" = "case_id")) %>%
+  mutate(Hypoglycaemia_cat = if_else(is.na(Hypoglycaemia_cat), "No_measurement", Hypoglycaemia_cat)) %>% 
+  select(- pat_geb_dat, - alter_in_tagen)
+Newborn_group1 <- left_join(Newborn_group1, Hypoglyc_data_cat,  by = c("patient_id_child" = "patient_id", "case_id_child" = "case_id")) %>%
+  mutate(Hypoglycaemia_cat = if_else(is.na(Hypoglycaemia_cat), "No_measurement", Hypoglycaemia_cat)) %>% 
+  select(- pat_geb_dat, - alter_in_tagen)
+Newborn_group2 <- left_join(Newborn_group2, Hypoglyc_data_cat,  by = c("patient_id_child" = "patient_id", "case_id_child" = "case_id")) %>%
+  mutate(Hypoglycaemia_cat = if_else(is.na(Hypoglycaemia_cat), "No_measurement", Hypoglycaemia_cat)) %>% 
+  select(- pat_geb_dat, - alter_in_tagen)
+Newborn_group3 <- left_join(Newborn_group3, Hypoglyc_data_cat,  by = c("patient_id_child" = "patient_id", "case_id_child" = "case_id")) %>%
+  mutate(Hypoglycaemia_cat = if_else(is.na(Hypoglycaemia_cat), "No_measurement", Hypoglycaemia_cat)) %>% 
+  select(- pat_geb_dat, - alter_in_tagen)
+Newborn_group4 <- left_join(Newborn_group4, Hypoglyc_data_cat,  by = c("patient_id_child" = "patient_id", "case_id_child" = "case_id")) %>%
+  mutate(Hypoglycaemia_cat = if_else(is.na(Hypoglycaemia_cat), "No_measurement", Hypoglycaemia_cat)) %>% 
+  select(- pat_geb_dat, - alter_in_tagen)
+
 table(Sample2b$Hypoglycaemia_cat)
 # Mild       Moderate     No_measure Normoglycaemic         Severe 
 # 177             28           4312           2289             97 
@@ -1451,37 +1774,89 @@ ID_check_patient_b <- Lookup_bili %>%
 rm(ID_check_b, ID_check_case_b, ID_check_patient_b)
 
 # CATEGORISATION (Guideline USB)
+# CATEGORISATION (Guideline USB)
 ## Build categories based on USB bilirubin threshold
 Bili_cat_USB <- Lookup_bili %>% 
   mutate(Bili_threshold = case_when(Age_in_hours < 24 ~ 150,
                                     Age_in_hours < 48 ~ 250, 
                                     Age_in_hours < 72 ~ 300, 
                                     Age_in_hours >= 72 ~ 350)) %>% 
-  mutate(Treatment_required_Hyperbili = if_else(Value_umol_l >= Bili_threshold, "Yes", "No"))
+  mutate(Treatment_required_Hyperbili = if_else(Value_umol_l >= Bili_threshold, "Yes", "No")) # 235678
 
-# Check regarding bilirubin type (TCB, Serum)
-Bili_cat_USBb <- Bili_cat_USB %>%
+table(Bili_cat_USB$Treatment_required_Hyperbili)
+# No      Yes 
+# 23465   113 
+
+# Check regarding bilirubin type (TCB, Serum) and build categories
+Bili_cat_USB_measure <- Bili_cat_USB %>%
   mutate(Bili_levels = case_when(
     bilirubin_type == "TRANSCUTAN" & Value_umol_l < Bili_threshold ~ "bili_tc_norm",
     bilirubin_type == "TRANSCUTAN" & Value_umol_l >= Bili_threshold ~ "bili_tc_photo",
     bilirubin_type == "SERUM" & Value_umol_l < Bili_threshold ~ "bili_serum_norm",
     bilirubin_type == "SERUM" & Value_umol_l >= Bili_threshold ~ "bili_serum_photo"))
 
-table(Bili_cat_USBb$Bili_levels)
+table(Bili_cat_USB_measure$Bili_levels)
 # bili_serum_norm   bili_serum_photo     bili_tc_norm    bili_tc_photo 
 # 2198              26                   21267           87 
 
-# There are NAs, I want to build a new variable (check the distribution with the actual sample)
-Sample2c <- left_join(Sample2b, Bili_cat_USB, by = c("patient_id_child" = "patient_id", "case_id_child" = "case_id")) %>% 
-  select(patient_id_child, case_id_child, bilirubin_type, Value_umol_l, Treatment_required_Hyperbili) %>% 
-  mutate(bilirubin_type = if_else(is.na(bilirubin_type), "No_measure", bilirubin_type), # NA = no measurement, to remove NA
-         Value_umol_l = if_else(is.na(Value_umol_l), 0, Value_umol_l),
-         Treatment_required_Hyperbili = if_else(is.na(Treatment_required_Hyperbili), "No_measure", Treatment_required_Hyperbili))
- 
-## now there are sometimes several bili measurement entries per newborn --> generate one row + build a new variable and summarise it to a category varaible to better merge 
-Hyperbilirubinaemia_cat <- Bili_cat_USB %>% 
+# Build categories based on measurement (tc-serum = serum, tcb-no serum = tcb, no tcb-serum = serum)
+Bili_cat_USB_measure2 <- Bili_cat_USB_measure %>%
   group_by(patient_id, case_id) %>% 
-  summarise(Hyperbili_cat = if_else(any(Treatment_required_Hyperbili == "Yes"), "Hyperbili", "Physiological_jaundice"))
+  mutate(Hyperbilirubinaemia_tc = if_else(any(Bili_levels == "bili_tc_photo"), "Yes", "No"),
+         Hyperbilirubinaemia_serum = if_else(any(Bili_levels == "bili_serum_photo"), "Yes", "No"),
+         tc_measure_y = any(bilirubin_type == "TRANSCUTAN"),
+         serum_measure_y = any(bilirubin_type == "SERUM")) %>% 
+  mutate(Bilirubin_cat = case_when(
+      Hyperbilirubinaemia_serum == "Yes" ~ "Hyperbilirubinaemia_serum",
+      Hyperbilirubinaemia_tc == "Yes" ~ "Hyperbilirubinaemia_tc", TRUE ~ "Physiological")) %>%
+  ungroup()
+
+# now there are sometimes several bili measurement entries per newborn --> generate one row 
+## check if there are only one Bilirubin_cat per patient
+Bili_cat_USB_measure2 %>%
+  group_by(patient_id, case_id) %>%
+  summarise(n_cat = n_distinct(Bilirubin_cat)) %>%
+  filter(n_cat > 1)
+
+# Build variable with just one row per patient
+Bili_cat_USB_measure_f <- Bili_cat_USB_measure2 %>%
+  distinct(patient_id, case_id, .keep_all = TRUE) %>%
+  select(patient_id, case_id, Bilirubin_cat)
+
+summary(as.factor(Bili_cat_USB_measure_f$Bilirubin_cat))
+# Hyperbilirubinaemia_serum    Hyperbilirubinaemia_tc  Physiological 
+# 23                           53                      8220
+
+# Merge with sample/ newborn groups
+Sample3 <- left_join(Sample3, Bili_cat_USB_measure_f, by = c("patient_id_child" = "patient_id", "case_id_child" = "case_id")) %>%
+  mutate(Bilirubin_cat = if_else(is.na(Bilirubin_cat), "No_measurement", Bilirubin_cat))
+Newborn_group1 <- left_join(Newborn_group1, Bili_cat_USB_measure_f,  by = c("patient_id_child" = "patient_id", "case_id_child" = "case_id")) %>%
+  mutate(Bilirubin_cat = if_else(is.na(Bilirubin_cat), "No_measurement", Bilirubin_cat))
+Newborn_group2 <- left_join(Newborn_group2, Bili_cat_USB_measure_f,  by = c("patient_id_child" = "patient_id", "case_id_child" = "case_id")) %>%
+  mutate(Bilirubin_cat = if_else(is.na(Bilirubin_cat), "No_measurement", Bilirubin_cat))
+Newborn_group3 <- left_join(Newborn_group3, Bili_cat_USB_measure_f,  by = c("patient_id_child" = "patient_id", "case_id_child" = "case_id")) %>%
+  mutate(Bilirubin_cat = if_else(is.na(Bilirubin_cat), "No_measurement", Bilirubin_cat))
+Newborn_group4 <- left_join(Newborn_group4, Bili_cat_USB_measure_f,  by = c("patient_id_child" = "patient_id", "case_id_child" = "case_id")) %>%
+  mutate(Bilirubin_cat = if_else(is.na(Bilirubin_cat), "No_measurement", Bilirubin_cat))
+
+
+# There are NAs, I want to build a new variable (check the distribution with the actual sample)
+# Sample2c <- left_join(Sample2b, Bili_cat_USB, by = c("patient_id_child" = "patient_id", "case_id_child" = "case_id")) %>% 
+#   select(patient_id_child, case_id_child, bilirubin_type, Value_umol_l, Treatment_required_Hyperbili) %>% 
+#   mutate(bilirubin_type = if_else(is.na(bilirubin_type), "No_measure", bilirubin_type), # NA = no measurement, to remove NA
+#          Value_umol_l = if_else(is.na(Value_umol_l), 0, Value_umol_l),
+#          Treatment_required_Hyperbili = if_else(is.na(Treatment_required_Hyperbili), "No_measure", Treatment_required_Hyperbili))
+ 
+### OLD
+## now there are sometimes several bili measurement entries per newborn --> generate one row + build a new variable and summarise it to a category variable to better merge 
+# Hyperbilirubinaemia_cat <- Bili_cat_USB %>% 
+#   group_by(patient_id, case_id) %>% 
+#   summarise(Hyperbili_cat = if_else(any(Treatment_required_Hyperbili == "Yes"), "Hyperbili", "Physiological_jaundice"))
+# 
+# table(Hyperbilirubinaemia_cat$Hyperbili_cat)
+# # Hyperbili           Physiological_jaundice 
+# # 76                  8220 
+
 
 # CATEGORISATION (NICE Guideline)
 ## Import NICE threshold table bili
@@ -1516,7 +1891,8 @@ table(Bili_cat_Niceb$Bili_levels)
 # Bili_serum_bloodtrans       Bili_serum_norm     Bili_serum_photo    Bili_tc_bloodtrans   Bili_tc_norm       Bili_tc_photo 
 # 2                           2163                59                  10                   21103              241
 
-# Join with Procedure data to compare (with USB Nice guideline)
+
+#Join with Procedure data to compare (with USB guideline)
 Bili_comb_procedure <- left_join(Bili_cat_USBb, Procedure_red2_corr, by = c("patient_id", "case_id"), relationship = "many-to-many") %>%
   select(patient_id, case_id, Treatment_required_Hyperbili, Bili_levels, procedure_label)
 
@@ -1533,7 +1909,6 @@ Bili_comb_procedure <- left_join(Bili_cat_USBb, Procedure_red2_corr, by = c("pat
 # 2 FALSE                TRUE                       82
 # 3 TRUE                 FALSE                      53
 # 4 TRUE                 TRUE                       27
-
 # Identification cases normally out of treatment threshold
 Bili_comb_procedure2 <- Bili_comb_procedure %>%
   filter(Bili_levels %in% c("bili_tc_norm", "bili_serum_norm") & procedure_label == "Sonstige Phototherapie") %>%
@@ -1838,6 +2213,18 @@ round(prop.table(table(as.factor(Temp_data_cat2$Hypothermia_cat))) * 100, 1)
 
 
 # 8. Merging with sample data-----------------------------------------------------------------
+
+Sample3 <- left_join(Sample3, Temp_data_cat2, by = c("patient_id_child", "case_id_child")) %>% 
+  select(- VVMO_NUMERIC_VALUE, - VVMO_MEASURE_DATE_TS)
+Newborn_group1 <- left_join(Newborn_group1, Temp_data_cat2, by = c("patient_id_child", "case_id_child")) %>% 
+  select(- DIA_NK, - ICD_labels)
+Newborn_group2 <- left_join(Newborn_group2, Temp_data_cat2, by = c("patient_id_child", "case_id_child")) %>% 
+  select(- DIA_NK, - ICD_labels)
+Newborn_group3 <- left_join(Newborn_group3, Temp_data_cat2, by = c("patient_id_child", "case_id_child")) %>% 
+  select(- DIA_NK, - ICD_labels)
+Newborn_group4 <- left_join(Newborn_group4, Temp_data_cat2, by = c("patient_id_child", "case_id_child")) %>% 
+  select(- DIA_NK, - ICD_labels)
+
 ## Join with Sample2b
 Sample2c <- left_join(Sample2b, Temp_data_cat2, by = c("patient_id_child", "case_id_child")) %>% 
   select(- VVMO_NUMERIC_VALUE, - VVMO_MEASURE_DATE_TS)
