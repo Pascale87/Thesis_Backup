@@ -12,7 +12,7 @@ library(feather)
 # install.packages("lubridate")
 # library(lubridate)
 # install.packages("janitor")
-# library(janitor)
+library(janitor)
 # install.packages("gtsummary")
 # library(gtsummary) --> Fehler: Laden von Paket oder Namensraum für ‘gtsummary’ in loadNamespace(j <- i[[1L]], c(lib.loc, .libPaths()), versionCheck = vI[[j]]): fehlgeschlagen
 # Namensraum ‘glue’ 1.7.0 ist bereits geladen, aber >= 1.8.0 wird gefordert
@@ -36,6 +36,8 @@ load(file = "I:/Verwaltung/MaNtiS/03_Prozessierte_Daten/Meona_corr2_reduced.RDat
 # 2.b Pseudonymised data sets: Consent 
 Consent <- read_feather("I:/Verwaltung/MaNtiS/02_Pseudonymisierte_Daten/Consent_pseud.feather")
 Temp_data <- read_feather("I:/Verwaltung/MaNtiS/02_Pseudonymisierte_Daten/Temp_pseud.feather")
+
+
 
 # 3. Birth information ----------------------------------------------------
 # 3.1 Birth_corr2 ------------------------------------
@@ -243,6 +245,8 @@ Birth_corr2_m <- Birth_corr2_m %>%
 #          CBIS_BODY_SIZE, CBIS_BODY_SIZE_UNIT, CBIS_HEAD_SIZE, CBIS_HEAD_SIZE_UNIT, admission_neo, admission_neo_n, Weeks_LPM, Days_LPM, gestational_age_total_days, CON_VALUE) 
 
 # Create data sample with newborns >= 37 GA (259 weeks)
+GA <- Birth_corr2_m %>% 
+  filter(gestational_age_total_days < "259") # 1148 are under 37 GA
 Sample1 <- Birth_corr2_m %>% 
   filter(gestational_age_total_days >= "259") # 7802 
 
@@ -309,7 +313,7 @@ Sample1 %>%
 # <int>    <int>   <dbl>
 # 7074      340    4.81
 
-rm(Lookup1, Check_case_id, Check_pat_id, Check_stillbirth, Weight_exclude, Consent_check, Consent_check2, Consent_exclude_child, Consent_exclude_mother, Adm_nicu)
+rm(Lookup1, Check_case_id, Check_pat_id, Check_stillbirth, Weight_exclude, Consent_check, Consent_check2, Consent_exclude_child, Consent_exclude_mother, gestational_age_final, GA, Adm_nicu)
 
 ### Next steps:
 # - Merge Sample1 with Movement data set (LOS data) 
@@ -393,7 +397,7 @@ Check_id_sample2_mo2 <- Sample2 %>%
   select(case_id_mother) %>% 
   distinct # 6782
 
-rm(Check_id_sample2_child, Check_id_sample2_child2, Check_id_sample2_mo, Check_id_sample2_mo2, Sample1, Labour_dis_nicu, Sample2_isna_transfer)
+rm(Check_id_sample2_child, Check_id_sample2_child2, Check_id_sample2_mo, Check_id_sample2_mo2, Sample1, Labour_dis_nicu, Labour_dis_nicu_no, Sample2_isna_transfer)
 
 
 # 3.4.6 Neonatal diagnoses -------------------------------------------------
@@ -405,18 +409,18 @@ Sample2_dia_neonatal <- left_join(Sample2, Diagnose_red2_corr, by = c("patient_i
 table(Sample2_dia_neonatal$ICD_labels) # overview diagnoses
 
 ## Include diagnoses: 
-Included_icd_codes <- c("P55.1", "R63.4", "Q83.3", "Q69.2", "Z83.4", "Q82.5", "Q38.1", "Z83.5", "R01.0", "Z03.8", "Z03.3", "Z03.5", 
-                        "P54.6", "H11.3", "R00.1", "P83.4", "L81.3", "U07.2", "Z38.0", "P92.0", "P91.1", "L53.0", "P83.1", "R25.3", 
-                        "R50.80", "R50.9", "R14", "P05.1", "P05.0", "K21.9", "P12.1", "P15.5", "P12.9", "P15.3", "P15.4", "P13.8", 
-                        "Q54.0", "D18.01", "D18.05", "P78.2", "P54.5", "K40.90", "K42.9", "R01.1", "R05", "P80.9", "Z83.1", "P12.0", 
-                        "Z84.3", "Z20.6", "Z20.8", "Z20.5", "P90", "Z84.1", "Z83.2", "P83.9", "K13.2", "R22.0", "R22.2", 
-                        "R22.3", "R59.0", "D22.6", "D22.5", "D22.3", "D22.9", "Q70.2", "P08.2", "D48.5", "P07.12", "P58.1", "P58.8", 
-                        "P59.8", "P59.9", "Z24.6", "P38", "T14.03", "Q66.2", "Q66.4", "Q66.0", "L05.9", "Q18.1", "Z81", "P92.1", "D55.0",
-                        "P55.0", "P92.5", "R90.8", "Q66.8", "Q67.4", "Q10.3", "P92.8", "Q54.8", "P08.1", "P07.3", "P13.1", "R25.1", 
-                        "P12.8", "P14.3", "D23.4", "D23.9", "R01.2", "P70.4", "P80.8", "P51.8", "R68.8", "P15.8", "Z84.8", "L81.8", "P59.0",
-                        "P81.8", "R19.88", "P72.8", "S09.8", "P96.8", "K00.8", "P94.8", "R23.8", "N83.2", "R39.8", "R29.8", "K09.8", 
-                        "X59.9", "R50.88", "Z11", "U99.0", "P81.9", "K00.6", "P70.1", "P70.0", "R00.0", "M43.6", "P70.9", "P61.0", "E16.2",
-                        "P92.2", "P08.0", "P12.4", "R60.0", "R69", "W64.9", "Z04.3", "R23.4", "T81.2", "P96.3", "L22", "Z38.3", "Z38.5", "Y69", "Z83.3")
+# Included_icd_codes <- c("P55.1", "R63.4", "Q83.3", "Q69.2", "Z83.4", "Q82.5", "Q38.1", "Z83.5", "R01.0", "Z03.8", "Z03.3", "Z03.5", 
+#                         "P54.6", "H11.3", "R00.1", "P83.4", "L81.3", "U07.2", "Z38.0", "P92.0", "P91.1", "L53.0", "P83.1", "R25.3", 
+#                         "R50.80", "R50.9", "R14", "P05.1", "P05.0", "K21.9", "P12.1", "P15.5", "P12.9", "P15.3", "P15.4", "P13.8", 
+#                         "Q54.0", "D18.01", "D18.05", "P78.2", "P54.5", "K40.90", "K42.9", "R01.1", "R05", "P80.9", "Z83.1", "P12.0", 
+#                         "Z84.3", "Z20.6", "Z20.8", "Z20.5", "P90", "Z84.1", "Z83.2", "P83.9", "K13.2", "R22.0", "R22.2", 
+#                         "R22.3", "R59.0", "D22.6", "D22.5", "D22.3", "D22.9", "Q70.2", "P08.2", "D48.5", "P07.12", "P58.1", "P58.8", 
+#                         "P59.8", "P59.9", "Z24.6", "P38", "T14.03", "Q66.2", "Q66.4", "Q66.0", "L05.9", "Q18.1", "Z81", "P92.1", "D55.0",
+#                         "P55.0", "P92.5", "R90.8", "Q66.8", "Q67.4", "Q10.3", "P92.8", "Q54.8", "P08.1", "P07.3", "P13.1", "R25.1", 
+#                         "P12.8", "P14.3", "D23.4", "D23.9", "R01.2", "P70.4", "P80.8", "P51.8", "R68.8", "P15.8", "Z84.8", "L81.8", "P59.0",
+#                         "P81.8", "R19.88", "P72.8", "S09.8", "P96.8", "K00.8", "P94.8", "R23.8", "N83.2", "R39.8", "R29.8", "K09.8", 
+#                         "X59.9", "R50.88", "Z11", "U99.0", "P81.9", "K00.6", "P70.1", "P70.0", "R00.0", "M43.6", "P70.9", "P61.0", "E16.2",
+#                         "P92.2", "P08.0", "P12.4", "R60.0", "R69", "W64.9", "Z04.3", "R23.4", "T81.2", "P96.3", "L22", "Z38.3", "Z38.5", "Y69", "Z83.3")
 
 
 ## Exclude diagnoses: 
@@ -445,6 +449,19 @@ Sample3 <- anti_join(Sample2, Newborns_excluded_diagnoses, by = c("patient_id_ch
 Hypothermia_icd <- c("P80.0", "P80.8", "P80.9")
 Hypoglycaemia_icd <- c("P70.4", "E16.2")
 Hyperbilirubinaemia_icd <- c("P58.1", "P58.8", "P59.0", "P59.8", "P59.9")
+
+# Identify newborns with documented HHH-icd-10 
+Newborn_icd_HHH <- Diagnose_red2_corr %>% 
+  mutate(Doc_Hypothermia = DIA_NK %in% Hypothermia_icd,
+         Doc_Hypoglycaemia = DIA_NK %in% Hypoglycaemia_icd,
+         Doc_Hyperbilirubinaemia = DIA_NK %in% Hyperbilirubinaemia_icd) %>% 
+  group_by(patient_id, case_id) %>% 
+  summarise(Doc_Hypothermia = any(Doc_Hypothermia),
+            Doc_Hypoglycaemia = any(Doc_Hypoglycaemia),
+            Doc_Hyperbilirubinaemia = any(Doc_Hyperbilirubinaemia))
+
+Sample3 <- left_join(Sample3, Newborn_icd_HHH, by = c("patient_id_child" = "patient_id", "case_id_child" = "case_id"))
+
 
 ## HHH RELEVANT RISK FACTORS (NEONATAL/MATERNAL)
 # 1. Hypothermia: P07.3, P70.4, E16.2, P05.0, P05.1, P81.8, P81.9 / Sectio (mode of delivery), age of mother, race/ethnicity
@@ -522,12 +539,25 @@ Newborn_fully_healthy_Check_id <- Newborn_fully_healthy %>%
   select(patient_id_child, case_id_child) %>% 
   distinct # 3967
 
-Newborn_group1 <- Newborn_with_HHH_no_rf %>% distinct(patient_id_child, case_id_child, .keep_all = TRUE)
-Newborn_group2 <- Newborn_with_HHH_and_rf %>% distinct(patient_id_child, case_id_child, .keep_all = TRUE)
-Newborn_group3 <- Newborn_no_HHH_with_rf %>% distinct(patient_id_child, case_id_child, .keep_all = TRUE)
-Newborn_group4 <- Newborn_fully_healthy %>% distinct(patient_id_child, case_id_child, .keep_all = TRUE)
+# Build newborn groups
+Newborn_group1 <- Newborn_with_HHH_no_rf %>% distinct(patient_id_child, case_id_child, .keep_all = TRUE) %>% 
+  select(- DIA_NK, - ICD_labels)
+Newborn_group2 <- Newborn_with_HHH_and_rf %>% distinct(patient_id_child, case_id_child, .keep_all = TRUE) %>% 
+  select(- DIA_NK, - ICD_labels)
+Newborn_group3 <- Newborn_no_HHH_with_rf %>% distinct(patient_id_child, case_id_child, .keep_all = TRUE) %>% 
+  select(- DIA_NK, - ICD_labels)
+Newborn_group4 <- Newborn_fully_healthy %>% distinct(patient_id_child, case_id_child, .keep_all = TRUE) %>% 
+  select(- DIA_NK, - ICD_labels)
+
+# Add variables Newborn_icd_HHH
+Newborn_group1 <- left_join(Newborn_group1, Newborn_icd_HHH, by = c("patient_id_child" = "patient_id", "case_id_child" = "case_id"))
+Newborn_group2 <- left_join(Newborn_group2, Newborn_icd_HHH, by = c("patient_id_child" = "patient_id", "case_id_child" = "case_id"))
+Newborn_group3 <- left_join(Newborn_group3, Newborn_icd_HHH, by = c("patient_id_child" = "patient_id", "case_id_child" = "case_id"))
+Newborn_group4 <- left_join(Newborn_group4, Newborn_icd_HHH, by = c("patient_id_child" = "patient_id", "case_id_child" = "case_id"))
+
 
 rm(Newborn_with_HHH_no_rf_Check_id, Newborn_with_HHH_and_rf_Check_id, Newborn_no_HHH_with_rf_Check_id, Newborn_fully_healthy_Check_id, Sample3_filtered_icd)
+
 
 # 3.4.7 Maternal Risk factors HHH ------------------------------------------------------
 
@@ -610,6 +640,7 @@ Sample3<- left_join(Sample3, Countries2b, by = "PAT_CITIZENSHIP_COUNTRY") %>%
 # Africa     America        Asia      Europe     Oceania Switzerland     Unknown 
 # 3.8         2.7         7.5        43.2         0.2        42.3         0.2 
 
+rm(Countries_FOS, Countries_FOS1, Countries1, Countries2)
 
 # 3.4.7.4 Maternal Diagnoses ----------------------------------------------
 ## Merge with Sample 3
@@ -665,6 +696,7 @@ Sample3 <- left_join(Sample3, Maternal_DM2, by = "patient_id_mother") %>%
 # Newborn_group4 <- left_join(Newborn_fully_healthy, Sample3, c("patient_id_child", "case_id_child")) %>% 
 #   distinct(patient_id_child, case_id_child, .keep_all = T) # 3967
 
+rm(Sample_maternal_rf, Maternal_RF_cases)
 
 # 3.5 Operationalisation HHH ----------------------------------------------
 # 3.5.1 Hypothermia categories ----------------------------------------
@@ -690,6 +722,7 @@ Newborn_group4 <- Newborn_group4 %>%
   filter(!is.na(Hypothermia_cat)) # 3962
 ## Newborn_group1 no NA
 
+# Code to replace NAs
 # Sample3 <- Sample3 %>% 
 #   mutate(Hypothermia_cat = replace_na(Hypothermia_cat, "No_measurement"))
 
@@ -698,18 +731,19 @@ source("~/Thesis/Code/01_03_02_Code_Newborn_Meona.R")
 
 summary(as.factor(Sample3$Hypoglycaemia_cat))
 # Mild       Moderate    No_measurement    Normoglycaemic     Severe 
-# 121             16           3759           1780            50 
+# 121             16           3751           1780            50 
 
 # 3.5.3 Hyperbilirubinaemia categories ----------------------------------------
 
 summary(as.factor(Sample3$Hyperbilirubinaemia_cat))
 # Hyperbilirubinaemia_serum   Hyperbilirubinaemia_tcb           No_measurement        Physiological 
-# 36                          4                                 561                   5125  
+# 36                          4                                 555                   5123  
 ## Conclusion: random check showed that there are cases with no documentation of bilirubin levels - so it was summarised that these would indicate also no measurement during hospital stay
 
 
 # 3.5.4 Overview HHH  ---------------------------------------------------
 ## To have an overview if a child has none, one, two or all HHH diagnoses based on my categories
+### Whole sample
 Sample4 <- Sample3 %>%
   rowwise() %>%  # to not sum all values in the whole column
   mutate(hypoglyc_y = Hypoglycaemia_cat %in% c("Mild", "Moderate", "Severe"),
@@ -728,6 +762,105 @@ Sample4 <- Sample3 %>%
            TRUE ~ "Unknown")) %>% 
   select(- hypoglyc_y, - hypotherm_y, - hyperbili_y, - symptom_count)
 table(Sample4$HHH_diagnoses)
+# All_diagnoses    Hyperbili_Hypothermia      Hyperbili_only        Hypoglyc_Hypothermia         Hypoglyc_only        Hypotherm_only        None 
+# 1                11                         28                    76                           110                  1174                  4318
+
+# Compare categories with if its documented as diagnosis or not 
+## Hypothermia
+table(Sample4$Hypothermia_cat, Sample4$Doc_Hypothermia)
+#                 FALSE TRUE
+# Mild              792   24
+# Moderate_Severe   360   86
+# Norm             4451    5
+
+Table_hypotherm <- table(Sample4$Hypothermia_cat, Sample4$Doc_Hypothermia)
+round(prop.table(Table_hypotherm) * 100, 1) # total percentage distribution in relation to the entire data set
+#                 FALSE TRUE
+# Mild             13.9  0.4 -> 13.9 % of the newborns had mild hypothermia without a diagnosis, 0.4 % with a diagnosis.
+# Moderate_Severe   6.3  1.5 -> 1.5 % of newborns had Moderate/Severe with a diagnosis
+# Norm             77.8  0.1 -> although normotherm there were documented diagnosis
+round(prop.table(Table_hypotherm, margin = 1) * 100, 1) # per row, how much newborns within a category were documented/not documented icd
+#                 FALSE TRUE
+# Mild             97.1  2.9 -> 2.9 % of newborns with mild hypothermia had a documented ICD diagnosis
+# Moderate_Severe  80.7 19.3
+# Norm             99.9  0.1
+
+# Janitor: make a nice table
+# Sample4 %>%
+#   tabyl(Hypothermia_cat, Doc_Hypothermia) %>%
+#   adorn_percentages("row") %>%
+#   adorn_pct_formatting(digits = 1) %>%
+#   adorn_ns() -> Hypotherm_table
+# 
+# write.csv(Hypotherm_table, "Hypothermia_table1.csv", row.names = FALSE)
+
+## Hypoglycaemia
+table(Sample4$Hypoglycaemia_cat, Sample4$Doc_Hypoglycaemia)
+#                 FALSE TRUE
+# Mild              52   69
+# Moderate           6   10
+# No_measurement  3749    2
+# Normoglycaemic  1760   20
+# Severe            10   40
+
+Table_Hypoglyc <- table(Sample4$Hypoglycaemia_cat, Sample4$Doc_Hypoglycaemia)
+round(prop.table(Table_Hypoglyc) * 100, 1) 
+#                 FALSE TRUE
+# Mild             0.9  1.2 -> 1.2 % of all newborns had mild hypoglycaemia and an ICD diagnosis
+# Moderate         0.1  0.2
+# No_measurement  65.6  0.0
+# Normoglycaemic  30.8  0.3 -> 0.3 % with a diagnosis, although newborns are classified as normoglycaemic
+# Severe           0.2  0.7
+round(prop.table(Table_Hypoglyc, margin = 1) * 100, 1) # per row, how much newborns within a category were documented/not documented icd
+#                 FALSE TRUE
+# Mild            43.0 57.0 -> half was documented
+# Moderate        37.5 62.5 -> much more documented
+# No_measurement  99.9  0.1
+# Normoglycaemic  98.9  1.1
+# Severe          20.0 80.0 -> 80% were documented cases
+
+## Hyperbilirubinaemia
+table(Sample4$Hyperbilirubinaemia_cat, Sample4$Doc_Hyperbilirubinaemia)
+#                           FALSE TRUE
+# Hyperbilirubinaemia_serum    24   12
+# Hyperbilirubinaemia_tcb       2    2
+# No_measurement              554    1
+# Physiological              5101   22
+
+Table_Hyperbil <- table(Sample4$Hyperbilirubinaemia_cat, Sample4$Doc_Hyperbilirubinaemia)
+round(prop.table(Table_Hyperbil) * 100, 1) 
+#                           FALSE TRUE
+# Hyperbilirubinaemia_serum   0.4  0.2 
+# Hyperbilirubinaemia_tcb     0.0  0.0
+# No_measurement              9.7  0.0
+# Physiological              89.2  0.4 -> 0.4% had a documented diagnosis although physiological based on the categorisation
+round(prop.table(Table_Hyperbil, margin = 1) * 100, 1)
+#                            FALSE TRUE
+# Hyperbilirubinaemia_serum  66.7 33.3 -> only 33.3 % of clinically abnormal cases (serum-based) were actually coded as hyperbilirubinaemia
+# Hyperbilirubinaemia_tcb    50.0 50.0
+# No_measurement             99.8  0.2
+# Physiological              99.6  0.4
+
+table(Sample4$Phototherapy_status, Sample4$Doc_Hyperbilirubinaemia)
+#                               FALSE TRUE
+# Indicated_AND_Documented         4    8
+# Indicated_BUT_Not_Documented    22    6
+# No_measurement                 554    1
+# Not_Indicated_BUT_Documented     1   11
+# Not_Indicated_NOT_Documented  5100   11
+
+Table_Hyperbili_Photo <- table(Sample4$Phototherapy_status, Sample4$Doc_Hyperbilirubinaemia)
+round(prop.table(Table_Hyperbili_Photo) * 100, 1) 
+#                               FALSE TRUE
+# Indicated_AND_Documented       0.1  0.1
+# Indicated_BUT_Not_Documented   0.4  0.1
+# No_measurement                 9.7  0.0
+# Not_Indicated_BUT_Documented   0.0  0.2
+# Not_Indicated_NOT_Documented  89.2  0.2
+
+Sample4_check <- Sample4 %>%
+  filter(Phototherapy_status == "No_measurement", Doc_Hyperbilirubinaemia == TRUE)
+
 
 # Newborn Groups
 ## Group 1
@@ -751,6 +884,8 @@ Newborn_group1 <- Newborn_group1 %>%
 table(Newborn_group1$HHH_diagnoses)
 # Hyperbili_Hypothermia    Hyperbili_only   Hypoglyc_Hypothermia    Hypoglyc_only       Hypotherm_only        None 
 # 2                        5                19                      20                  64                    26 
+
+
 
 ## Group 2
 Newborn_group2 <- Newborn_group2 %>%
@@ -816,7 +951,7 @@ Newborn_group4 <- Newborn_group4 %>%
   select(- hypoglyc_y, - hypotherm_y, - hyperbili_y, - symptom_count)
 table(Newborn_group4$HHH_diagnoses)
 # Hyperbili_Hypothermia     Hyperbili_only        Hypoglyc_Hypothermia         Hypoglyc_only        Hypotherm_only       None 
-# 2                         10                    16              
+# 2                         10                    16                           14                   727                  3193
 
 # 4. Overview sample ------------------------------------------------------
 
@@ -827,11 +962,11 @@ Sample_final_all <- Sample4 %>%
   mutate(LOS = LOS/60)
 attr(Sample_final_all$LOS, "units") <- "h"
  
-# # NICU admission
-# # Percentages Admission NICU
+# NICU admission
+## Percentages Admission NICU
 Sample_final_nicu <- Sample_final_all %>%
   filter(admission_neo_n == 1) # 47
-# 
+
 Sample_final_all %>%
   ungroup() %>%
   summarise(total = n(),
@@ -840,29 +975,179 @@ Sample_final_all %>%
 # total  admitted  percent
 # <int>     <int>    <dbl>
 #1  5718       47    0.822
-# 
-table(Sample_final_all$HHH_diagnoses)
-# All_diagnoses       Hyperbili_Hypothermia  Hyperbili_only       Hypoglyc_Hypothermia         Hypoglyc_only        Hypotherm_only        None 
-# 1                    11                    28                    76                          110                  1174                  4318
-table(Sample_final_all$Hypothermia_cat)
-# Mild     Moderate_Severe      Norm
-# 816      446                  4456
-table(Sample_final_all$Hypoglycaemia_cat)
-# Mild       Moderate No_measurement Normoglycaemic         Severe 
-# 121             16           3751           1780             50
-table(Sample_final_all$Bilirubin_cat)
-# Hyperbilirubinaemia_serum   Hyperbilirubinaemia_tcb           No_measurement          Physiological 
-# 36                          4                                 555                     5123 
 
+# Overview: Newborns admitted Nicu
+## GA
+table(Sample_final_nicu$Weeks_LPM)
+# 37 38 39 40 41 42 
+# 2 13 14 11  6  1 
+round(prop.table(table(Sample_final_nicu$Weeks_LPM)) * 100, 1)
+# 37   38   39   40   41   42 
+# 4.3 27.7 29.8 23.4 12.8  2.1 
 
-# # Identify newborns admitted to NICU based on categories
-# Summary_neonatal_Nicu_hhh <- Sample_final_all %>%
-#   group_by(Hypothermia_cat, Hypoglycaemia_cat, Hyperbili_cat) %>%
-#   summarise(n_total = n(),
-#             n_admitted = sum(admission_neo_n == 1),
-#             percent = (n_admitted / n_total) * 100)
-# 
-# print(Summary_neonatal_Nicu_hhh, n = Inf)
+table(Sample_final_nicu$weight_cat)
+# 2500-2999 3000-3500 3500-4000  4000-4500 
+# 10        14        19         4 
+
+table(Sample_final_nicu$LOS) # unübersichtlich
+Sample_final_nicu <- Sample_final_nicu %>%
+  mutate(LOS_cat = case_when(
+    LOS < 6 ~ "<6h",
+    LOS < 12 ~ "6–12h",
+    LOS < 24 ~ "12–24h",
+    LOS < 48 ~ "24–48h",
+    LOS < 72 ~ "48–72h",
+    TRUE ~ "≥72h"))
+table(Sample_final_nicu$LOS_cat)
+# <6h   ≥72h 12–24h 24–48h 48–72h  6–12h 
+# 8      7     12     10      5      5 
+round(prop.table(table(Sample_final_nicu$LOS_cat)) * 100, 1)
+# <6h   ≥72h   12–24h  24–48h  48–72h   6–12h 
+# 17.0   14.9   25.5    21.3    10.6    10.6 
+
+table(Sample_final_nicu$RF_parity)
+# Multi Primi 
+# 19    28
+round(prop.table(table(Sample_final_nicu$RF_parity)) * 100, 1)
+# Multi Primi 
+# 40.4  59.6 
+
+table(Sample_final_nicu$RF_Maternal_age)
+Sample_final_nicu %>%
+  mutate(Maternal_age_group = case_when(
+    RF_Maternal_age < 20 ~ "<20",
+    RF_Maternal_age < 25 ~ "20–24",
+    RF_Maternal_age < 30 ~ "25–29",
+    RF_Maternal_age < 35 ~ "30–34",
+    RF_Maternal_age < 40 ~ "35–39",
+    TRUE ~ "≥40")) %>%
+  count(Maternal_age_group) %>%
+  ungroup() %>% 
+  mutate(percent = round(n/sum(n) * 100, 1)) %>%
+  arrange(Maternal_age_group)
+
+# Maternal_age_group  n percent
+# <chr>              <int>   <dbl>
+# 1 20–24               5    10.6
+# 2 25–29               7    14.9
+# 3 30–34               16   34  
+# 4 35–39               14   29.8
+# 5 ≥40                 5    10.6
+
+table(Sample_final_nicu$Country)
+# Africa      Asia      Europe  Switzerland     Unknown 
+# 4           2          21          19           1 
+
+table(Sample_final_nicu$Maternal_diabetes_type)
+# No_diabetes  GDM    preex_DM    DM_GDM 
+# 38           9      0           0 
+
+table(Sample_final_nicu$HHH_diagnoses)
+# Hyperbili_only Hypoglyc_Hypothermia        Hypoglyc_only       Hypotherm_only      None 
+# 7                   11                    4                    8                   17 
+
+table(Sample_final_nicu$Hypothermia_cat)
+# Mild   Moderate_Severe    Norm
+# 4      15                 28
+
+table(Sample_final_nicu$Hypoglycaemia_cat)
+# Mild       Moderate   No_measurement   Normoglycaemic   Severe 
+# 1             0           14            18              14
+
+table(Sample_final_nicu$Hyperbilirubinaemia_cat)
+# Hyperbilirubinaemia_serum   Hyperbilirubinaemia_tcb         No_measurement        Physiological 
+# 5                           2                               17                    23 
+
+## Descriptive
+
+# Sample: whole sample
+# Numerical
+Summary1 <- Sample_final_nicu %>%
+  ungroup() %>% 
+  summarise(
+    min_ga = min(Weeks_LPM, na.rm = TRUE), # gestational age
+    max_ga = max(Weeks_LPM, na.rm = TRUE),
+    mean_ga = mean(Weeks_LPM, na.rm = TRUE),
+    sd_ga = sd(Weeks_LPM, na.rm = TRUE),
+    iqr_ga_q1 = quantile(Weeks_LPM, 0.25, na.rm = TRUE),
+    iqr_ga_q3 = quantile(Weeks_LPM, 0.75, na.rm = TRUE),
+    min_weight = min(Birth_weight_g, na.rm = TRUE), # birth weight
+    max_weight = max(Birth_weight_g, na.rm = TRUE),
+    mean_weight = mean(Birth_weight_g, na.rm = TRUE),
+    sd_weight = sd(Birth_weight_g, na.rm = TRUE),
+    iqr_weight_q1 = quantile(Birth_weight_g, 0.25, na.rm = TRUE),
+    iqr_weight_q3 = quantile(Birth_weight_g, 0.75, na.rm = TRUE),
+    min_los = min(LOS, na.rm = TRUE), # LOS
+    max_los = max(LOS, na.rm = TRUE),
+    mean_los = mean(LOS, na.rm = TRUE),
+    sd_los = sd(LOS, na.rm = TRUE),
+    iqr_los_q1 = quantile(LOS, 0.25, na.rm = TRUE),
+    iqr_los_q3 = quantile(LOS, 0.75, na.rm = TRUE),
+    min_mat_age = min(RF_Maternal_age, na.rm = TRUE), # mother age
+    max_mat_age = max(RF_Maternal_age, na.rm = TRUE),
+    mean_mat_age = mean(RF_Maternal_age, na.rm = TRUE),
+    sd_mat_age = sd(RF_Maternal_age, na.rm = TRUE),
+    iqr_mat_age_q1 = quantile(RF_Maternal_age, 0.25, na.rm = TRUE),
+    iqr_mat_age_q3 = quantile(RF_Maternal_age, 0.75, na.rm = TRUE))
+
+Summary1_table <- tibble(
+  Variable = c("Gestational age (weeks)", "Birth weight (g)", "LOS (hours)", "Maternal age (years)"),
+  Min = round(c(Summary1$min_ga, Summary1$min_weight, Summary1$min_los, Summary1$min_mat_age), 1),
+  Max = round(c(Summary1$max_ga, Summary1$max_weight, Summary1$max_los, Summary1$max_mat_age), 1),
+  Mean = round(c(Summary1$mean_ga, Summary1$mean_weight, Summary1$mean_los, Summary1$mean_mat_age), 1),
+  SD = round(c(Summary1$sd_ga, Summary1$sd_weight, Summary1$sd_los, Summary1$sd_mat_age), 1),
+  IQR = c(
+    paste0(round(Summary1$iqr_ga_q1, 1), " – ", round(Summary1$iqr_ga_q3, 1)),
+    paste0(round(Summary1$iqr_weight_q1, 1), " – ", round(Summary1$iqr_weight_q3, 1)),
+    paste0(round(Summary1$iqr_los_q1, 1), " – ", round(Summary1$iqr_los_q3, 1)),
+    paste0(round(Summary1$iqr_mat_age_q1, 1), " – ", round(Summary1$iqr_mat_age_q3, 1))))
+
+n_total <- nrow(Sample_final_nicu)
+Summary1_table <- Summary1_table %>% 
+  mutate(n = n_total)
+
+Summary1_table
+ft1 <- flextable(Summary1_table)
+ft1 <- autofit(ft1)
+ft1
+
+# Categorical (Country, DM, HHH)
+Categorical_summary_table2 <- bind_rows(
+  Sample_final_nicu %>%
+    count(Country, name = "n") %>%
+    ungroup() %>%
+    mutate(Variable = "Country", Percent = round(n / sum(n) * 100, 1)) %>%
+    rename(Category = Country),
+
+  Sample_final_nicu %>%
+    count(Maternal_diabetes_type, name = "n") %>%
+    ungroup() %>%
+    mutate(Variable = "Maternal_diabetes_type", Percent = round(n / sum(n) * 100, 1)) %>%
+    rename(Category = Maternal_diabetes_type),
+
+  Sample_final_nicu %>%
+    count(Hypothermia_cat, name = "n") %>%
+    ungroup() %>%
+    mutate(Variable = "Hypothermia_cat", Percent = round(n / sum(n) * 100, 1)) %>%
+    rename(Category = Hypothermia_cat),
+
+  Sample_final_nicu %>%
+    count(Hypoglycaemia_cat, name = "n") %>%
+    ungroup() %>%
+    mutate(Variable = "Hypoglycaemia_cat", Percent = round(n / sum(n) * 100, 1)) %>%
+    rename(Category = Hypoglycaemia_cat),
+
+  Sample_final_nicu %>%
+    count(Hyperbilirubinaemia_cat, name = "n") %>%
+    ungroup() %>%
+    mutate(Variable = "Hyperbilirubinaemia_cat", Percent = round(n / sum(n) * 100, 1)) %>%
+    rename(Category = Hyperbilirubinaemia_cat)) %>%
+  select(Variable, Category, n, Percent)
+
+Categorical_summary_table2
+ft2 <- flextable(Categorical_summary_table2)
+ft2 <- autofit(ft3)
+ft2
 
 
 # Code not needed ---------------------------------------------------------
