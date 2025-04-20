@@ -1,28 +1,8 @@
 
-# 1. Install packages ------------------------------------------------------
-# install.packages("tidyverse") 
-library(tidyverse)
-# install.packages("feather")
-library(feather)
-# library(ggplot2)
-# install.packages("padr")
-library(padr)
-library(feather)
-# library(ggplot2)
-# install.packages("lubridate")
-# library(lubridate)
-# install.packages("janitor")
-library(janitor)
-# install.packages("gtsummary")
-# library(gtsummary) --> Fehler: Laden von Paket oder Namensraum für ‘gtsummary’ in loadNamespace(j <- i[[1L]], c(lib.loc, .libPaths()), versionCheck = vI[[j]]): fehlgeschlagen
-# Namensraum ‘glue’ 1.7.0 ist bereits geladen, aber >= 1.8.0 wird gefordert
-# install.packages("kableExtra")
-# library(kableExtra)
-
-
 # 2. Import data sets --------------------------------------------------------
 # 2.a Data sets
-load(file = "I:/Verwaltung/MaNtiS/03_Prozessierte_Daten/Birth_corr2.RData")
+# load(file = "I:/Verwaltung/MaNtiS/03_Prozessierte_Daten/Birth_corr2.RData")
+load(file = "I:/Verwaltung/MaNtiS/03_Prozessierte_Daten/Birth_corr3_2025-04-18.RData")
 load(file = "I:/Verwaltung/MaNtiS/03_Prozessierte_Daten/Diagnose_red2_corr.RData")
 load(file = "I:/Verwaltung/MaNtiS/03_Prozessierte_Daten/DRG_red1.RData")
 load(file = "I:/Verwaltung/MaNtiS/03_Prozessierte_Daten/Move_stat2f.RData")
@@ -33,6 +13,7 @@ load(file = "I:/Verwaltung/MaNtiS/03_Prozessierte_Daten/LOS_newborns_2025-03-06.
 load(file = "I:/Verwaltung/MaNtiS/03_Prozessierte_Daten/parity_2024-06-19.RData")
 load(file = "I:/Verwaltung/MaNtiS/03_Prozessierte_Daten/Meona_corr2_reduced.RData")
 
+
 # 2.b Pseudonymised data sets: Consent 
 Consent <- read_feather("I:/Verwaltung/MaNtiS/02_Pseudonymisierte_Daten/Consent_pseud.feather")
 Temp_data <- read_feather("I:/Verwaltung/MaNtiS/02_Pseudonymisierte_Daten/Temp_pseud.feather")
@@ -41,54 +22,53 @@ Temp_data <- read_feather("I:/Verwaltung/MaNtiS/02_Pseudonymisierte_Daten/Temp_p
 
 # 3. Birth information ----------------------------------------------------
 # 3.1 Birth_corr2 ------------------------------------
-summary(Birth_corr2)
+summary(Birth_corr3)
 
 ## Time frame check (Inclusion criteria 1)
-summary(Birth_corr2$CBIS_BIRTH_DATE_TS)
-# Min.                       1st Qu.                    Median                     Mean                       3rd Qu.                    Max. 
-# "2019-01-01 01:26:00.0000" "2019-12-22 02:57:00.0000" "2021-01-06 00:12:30.0000" "2020-12-31 05:41:56.7116" "2021-12-25 17:35:00.0000" "2022-12-31 16:17:00.0000" 
+summary(Birth_corr3$CBIS_BIRTH_DATE_TS)
+# Min.                    1st Qu.                     Median                       Mean                    3rd Qu.                       Max. 
+# "2019-01-01 01:26:00.0000" "2019-12-21 18:54:45.0000" "2021-01-05 15:17:00.0000" "2020-12-30 15:21:19.3272" "2021-12-24 07:42:30.0000" "2022-12-31 16:17:00.0000" 
 # Conclusion: no exclusions
 
-## patient_id_child
-# sum(is.na(Birth_corr2$patient_id_child)) # there are 2 NAs
+# patient_id_child
+# sum(is.na(Birth_corr3$patient_id_child)) # there are 2 NAs
 # ## case_id_child
-# sum(is.na(Birth_corr2$case_id_child)) # there are 2 NAs
-# na_case <- Birth_corr2 %>%
-#   filter(is.na(case_id_child)) # stillbirths 
+# sum(is.na(Birth_corr3$case_id_child)) # there are 2 NAs
+# na_case <- Birth_corr3 %>%
+#   filter(is.na(case_id_child)) # 2 stillbirths
 
-Birth_corr2 <- Birth_corr2 %>%
+Birth_corr3 <- Birth_corr3 %>%
   filter(!is.na(case_id_child)) # excluded cases without case_id, 10776 (-2)
 
 ## CBIS_BIRTH_DATE_TS (Birth date and time)
-summary(Birth_corr2$CBIS_BIRTH_DATE_TS)
-#Min.                    1st Qu.                     Median                       Mean                    3rd Qu.                       Max. 
-#"2019-01-01 01:26:00.0000" "2019-12-21 18:54:45.0000" "2021-01-05 15:17:00.0000" "2020-12-30 15:21:19.3272" "2021-12-24 07:42:30.0000" "2022-12-31 16:17:00.0000" 
-# from 2019-01-01 01:26:00. to 2022-12-31 16:17:00
-sum(is.na(Birth_corr2$CBIS_BIRTH_DATE_TS)) # no NAs
+summary(Birth_corr3$CBIS_BIRTH_DATE_TS)
+# Min.                    1st Qu.                     Median                       Mean                    3rd Qu.                       Max. 
+# "2019-01-01 01:26:00.0000" "2019-12-21 18:21:30.0000" "2021-01-05 14:18:30.0000" "2020-12-30 12:44:50.6337" "2021-12-24 04:11:45.0000" "2022-12-31 16:17:00.0000" 
+sum(is.na(Birth_corr3$CBIS_BIRTH_DATE_TS)) # no NAs
 
 ## CBIS_MULTIPLE_BIRTH_FLAG (multiple birth (several children), 1 if yes, otherwise 0)
-summary(as.factor(Birth_corr2$CBIS_MULTIPLE_BIRTH_FLAG))
+summary(as.factor(Birth_corr3$CBIS_MULTIPLE_BIRTH_FLAG))
 # 0      1 
 # 10143   633 
 # there are no NAs
 
 ## Stillbirths
-table(Birth_corr2$CBIS_STILLBIRTH_FLAG) # 77
+table(Birth_corr3$CBIS_STILLBIRTH_FLAG) # 77
 
 ## CBIS_CONGENITAL_MALFORMATION (congenital malformation (1 = yes, 0 = no, (-1) = unknown))
-table(Birth_corr2$CBIS_CONGENITAL_MALFORMATION)
+table(Birth_corr3$CBIS_CONGENITAL_MALFORMATION)
 # -1     0     1 
 # 73 10083   620 
 # there are no NAs
 
-## CBIS_MODE (codes in (1,7) - exact decryption still unclear))
-table(Birth_corr2$CBIS_MODE) 
-# 1    2    3    4    6 n.a. 
+## CBIS_MODE (codes in (1,7) - exact decryption still unclear)) --> new variable in Birth_corr3  
+# table(Birth_corr3$CBIS_MODE) 
+# # 1    2    3    4    6 n.a. 
 # 5409  841 1066  103   48 3309 
 ## not relevant
 
 ## CBIS_WEIGHT
-summary(Birth_corr2$CBIS_WEIGHT)
+summary(Birth_corr3$CBIS_WEIGHT)
 # Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
 # 135    2930    3300    3219    3650    5900      44 
 
@@ -104,7 +84,7 @@ summary(Birth_corr2$CBIS_WEIGHT)
 # #  1       3219.        135       5900
 
 ## CBIS_BODY_SIZE
-summary(Birth_corr2$CBIS_BODY_SIZE)
+summary(Birth_corr3$CBIS_BODY_SIZE)
 # Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
 # 19.00   48.00   50.00   49.64   52.00   63.00      45 
 
@@ -119,7 +99,7 @@ summary(Birth_corr2$CBIS_BODY_SIZE)
 # #  1      49.6         19         63
 
 ## CBIS_HEAD_SIZE
-summary(Birth_corr2$CBIS_HEAD_SIZE)
+summary(Birth_corr3$CBIS_HEAD_SIZE)
 # Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
 # 12.00   33.00   34.00   34.02   35.00   53.00      57 
 
@@ -132,22 +112,22 @@ summary(Birth_corr2$CBIS_HEAD_SIZE)
 # #  1           34.0              12              53
 
 ## CBIS_APGAR_SCORE_0Min
-summary(Birth_corr2$CBIS_APGAR_SCORE_0MIN)
+summary(Birth_corr3$CBIS_APGAR_SCORE_0MIN)
 # Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
 # 0.000   8.000   9.000   8.005   9.000  10.000    2597 
 
 ## CBIS_APGAR_SCORE_5Min
-summary(Birth_corr2$CBIS_APGAR_SCORE_5MIN)
+summary(Birth_corr3$CBIS_APGAR_SCORE_5MIN)
 # Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
 # 0.000   9.000   9.000   9.077  10.000  10.000    2605 
 
 ## CBIS_APGAR_SCORE_10Min
-summary(Birth_corr2$CBIS_APGAR_SCORE_10MIN)
+summary(Birth_corr3$CBIS_APGAR_SCORE_10MIN)
 # Min. 1st Qu.  Median    Mean 3rd Qu.    Max.    NA's 
 # 0.000  10.000  10.000   9.599  10.000  10.000    2605 
 
 ## CBIS_COMMENT
-summary(as.factor(Birth_corr2$CBIS_COMMENT)) 
+summary(as.factor(Birth_corr3$CBIS_COMMENT)) 
 # various specified comments, but not always -> variable will be deleted as not necessary and there are also person related information
 
 ## CBIS_CREATE_DATE (Date of creation of record) -> not needed, will be deleted
@@ -156,21 +136,23 @@ summary(as.factor(Birth_corr2$CBIS_COMMENT))
 ## CBIS_UPDATE_DAY_BK (Date of update of record in format YYYYMMDD) -> not needed, will be deleted
 
 # Check for id /cases
-Check_id <- Birth_corr2 %>% 
+Check_id <- Birth_corr3 %>% 
   select(patient_id_child, case_id_child) %>% 
   distinct
 # 10776 obs
 
-Check_pat_id <- Birth_corr2 %>% 
+Check_pat_id <- Birth_corr3 %>% 
   select(patient_id_child) %>% 
   distinct
 
-Check_case_id <- Birth_corr2 %>% 
+Check_case_id <- Birth_corr3 %>% 
   select(case_id_child) %>% 
   distinct
 
 # Check for duplicates
-sum(duplicated(Birth_corr2)) # no duplicates
+sum(duplicated(Birth_corr3)) # no duplicates
+
+rm(Check_case_id, Check_id, Check_pat_id)
 
 # 3.2 Gestational age data set (for inclusion criteria 3)------------------------------------------
 # 10348 obs of 7 variables
@@ -189,8 +171,8 @@ summary(as.factor(Consent$CON_VALUE))
 # 5188   36   1364 
 
 # Consent-checks mother and child
-Consent_check <- left_join(Birth_corr2, Consent, by = c("patient_id_mother" = "patient_id"))
-Consent_check2 <- left_join(Birth_corr2, Consent, by = c("patient_id_child" = "patient_id"))
+Consent_check <- left_join(Birth_corr3, Consent, by = c("patient_id_mother" = "patient_id"))
+Consent_check2 <- left_join(Birth_corr3, Consent, by = c("patient_id_child" = "patient_id"))
 
 Consent_exclude_mother <- Consent_check %>%
   filter(CON_VALUE %in% "Nein") %>% 
@@ -200,7 +182,7 @@ Consent_exclude_child <- Consent_check2 %>%
   filter(CON_VALUE %in% "Nein") %>% 
   select(patient_id_child, case_id_child) # 82 
 
-Lookup1 <- Birth_corr2 %>%
+Lookup1 <- Birth_corr3 %>%
   filter(!case_id_mother %in% Consent_exclude_mother$case_id_mother) %>%
   filter(!case_id_child %in% Consent_exclude_child$case_id_child)  # 9342
 
@@ -226,28 +208,28 @@ Lookup1 <- Birth_corr2 %>%
 
 # 3.4 Sample selection ------------------------------------------
 # To bring together the GA data set with Birth_corr2 data (Lookup1)
-Birth_corr2_m <- left_join(Lookup1, gestational_age_final, by = c("patient_id_mother", "case_id_mother", "patient_id_child", "case_id_child"), relationship = "many-to-many")
+Birth_corr3_m <- left_join(Lookup1, gestational_age_final, by = c("patient_id_mother", "case_id_mother", "patient_id_child", "case_id_child"), relationship = "many-to-many")
 # 9342
-summary(Birth_corr2_m) # overview: Gestational age there are now 392 NAs -> most of them amb./tagesklinik
-Birth_corr2_m <- Birth_corr2_m %>% 
+summary(Birth_corr3_m) # overview: Gestational age there are now 392 NAs -> most of them amb./tagesklinik
+Birth_corr3_m <- Birth_corr3_m %>% 
   filter(!is.na(gestational_age_total_days)) # 8950
-table(duplicated(Birth_corr2_m))  # check for duplicates
+table(duplicated(Birth_corr3_m))  # check for duplicates, no ones
 
 # 3.4.1 >= 37 GA ---------------------------------------------------------------
 # Inclusion criteria 3
 # Select only variable of interest
-Birth_corr2_m <- Birth_corr2_m %>%
+Birth_corr3_m <- Birth_corr3_m %>%
   select(patient_id_mother, case_id_mother, patient_id_child, case_id_child, CBIS_BIRTH_DATE_TS, CBIS_WEIGHT, CBIS_WEIGHT_UNIT,
-         CBIS_STILLBIRTH_FLAG, CBIS_CONGENITAL_MALFORMATION, Weeks_LPM, Days_LPM, gestational_age_total_days, admission_neo, admission_neo_n) #- CON_VALUE
+         CBIS_STILLBIRTH_FLAG, CBIS_CONGENITAL_MALFORMATION, Weeks_LPM, Days_LPM, gestational_age_total_days, admission_neo, admission_neo_n, feeding_method_u3, mode_of_birth) #- CON_VALUE
 
 # Lookup2 <- Birth_corr2_m %>%
 #   select(patient_id_child, case_id_child, CBIS_BIRTH_DATE_TS, CBIS_BIRTH_DAY_BK, CBIS_BIRTH_TIM_BK, CBIS_WEIGHT, CBIS_WEIGHT_UNIT, CBIS_STILLBIRTH_FLAG, CBIS_CONGENITAL_MALFORMATION,
 #          CBIS_BODY_SIZE, CBIS_BODY_SIZE_UNIT, CBIS_HEAD_SIZE, CBIS_HEAD_SIZE_UNIT, admission_neo, admission_neo_n, Weeks_LPM, Days_LPM, gestational_age_total_days, CON_VALUE) 
 
 # Create data sample with newborns >= 37 GA (259 weeks)
-GA <- Birth_corr2_m %>% 
+GA <- Birth_corr3_m %>% 
   filter(gestational_age_total_days < "259") # 1148 are under 37 GA
-Sample1 <- Birth_corr2_m %>% 
+Sample1 <- Birth_corr3_m %>% 
   filter(gestational_age_total_days >= "259") # 7802 
 
 # 3.4.1.1 Birth weight ---------------------------------------------------------
@@ -275,58 +257,92 @@ Sample1 <- Sample1 %>%
                                 Birth_weight_g >= 4000 & Birth_weight_g <= 4500 ~ "4000-4500"))
 
 
-# 3.4.2 Stillbirth and Malformations --------------------------------------
+# 3.4.2 Stillbirth --------------------------------------
 table(Sample1$CBIS_STILLBIRTH_FLAG) 
 # 0      1 
 # 7491   6
 
-## CBIS_CONGENITAL_MALFORMATION (congenital malformation (1 = yes, 0 = no, (-1) = unknown))
-table(Sample1$CBIS_CONGENITAL_MALFORMATION)
-# -1    0    1 
-# 18 7080  399
+# ## CBIS_CONGENITAL_MALFORMATION (congenital malformation (1 = yes, 0 = no, (-1) = unknown)) --> will be excluded later
+# table(Sample1$CBIS_CONGENITAL_MALFORMATION)
+# # -1    0    1 
+# # 18 7080  399
 
-Check_stillbirth <- Sample1 %>% 
-  filter(CBIS_STILLBIRTH_FLAG == 1, CBIS_CONGENITAL_MALFORMATION == 1) # 0 cases with both conditions
+# Check_stillbirth <- Sample1 %>% 
+#   filter(CBIS_STILLBIRTH_FLAG == 1, CBIS_CONGENITAL_MALFORMATION == 1) # 0 cases with both conditions
 
-# to excluded conditions stillbirths and malformation
+# to exclude cases with stillbirths 
 Sample1 <- Sample1 %>% 
-  filter(CBIS_STILLBIRTH_FLAG == 0, CBIS_CONGENITAL_MALFORMATION == 0) # 7074, no unknown cases present
+  filter(CBIS_STILLBIRTH_FLAG == 0) # 7491, no unknown cases present
 
-## To check --> should be performed later too
-# Percentages
-Birth_corr2_m %>%
-  summarise(total = n(),
-            GA_week37 = sum(gestational_age_total_days >= 259),
-            percent = (GA_week37 / total) * 100)
-# total GA_week37 percent
-# <int>     <int>   <dbl>
-#1  8950      7802    87.2
+# ## To check --> should be performed later too
+# # Percentages
+# Birth_corr3_m %>%
+#   summarise(total = n(),
+#             GA_week37 = sum(gestational_age_total_days >= 259),
+#             percent = (GA_week37 / total) * 100)
+# # total GA_week37 percent
+# # <int>     <int>   <dbl>
+# #1  8950      7802    87.2
 
 # Admission neo (just a between step for control, inclusion criteria 2 is actually missing) --> to performe later too
-Adm_nicu <- Sample1 %>% 
-  filter(admission_neo %in% "Yes") # 340
-Sample1 %>%
-  summarise(total = n(), 
-            admitted = sum(admission_neo %in% "Yes"), 
-            percent = (admitted / total) * 100)
-# total admitted percent
-# <int>    <int>   <dbl>
-# 7074      340    4.81
+# Adm_nicu <- Sample1 %>% 
+#   filter(admission_neo %in% "Yes") # 340
+# Sample1 %>%
+#   summarise(total = n(), 
+#             admitted = sum(admission_neo %in% "Yes"), 
+#             percent = (admitted / total) * 100)
+# # total admitted percent
+# # <int>    <int>   <dbl>
+# # 1  7802   448    5.74
 
-rm(Lookup1, Check_case_id, Check_pat_id, Check_stillbirth, Weight_exclude, Consent_check, Consent_check2, Consent_exclude_child, Consent_exclude_mother, gestational_age_final, GA, Adm_nicu)
-
-### Next steps:
-# - Merge Sample1 with Movement data set (LOS data) 
-# - (Merging with icds)
-# - Merging with temp data, Meona data bili and glucose
-
+rm(Lookup1, Weight_exclude, Consent_check, Consent_check2, Consent_exclude_child, Consent_exclude_mother, gestational_age_final, GA)
 
 # 3.4.3 Mode of delivery --------------------------------------------------
-## -> I will get the data
+table(Sample1$mode_of_birth)
+# Instrum_del  Normal_del  Pl_CS      Upl_CS 
+# 1077         3753        1455       1127 
 
+table(is.na(Sample1$mode_of_birth)) # 79
 
+# create new variable
+Sample1 <- Sample1 %>%
+  mutate(Birth_mode = mode_of_birth)
+
+Sample1 <- Sample1 %>% 
+  mutate(Birth_mode_group = case_when(
+    Birth_mode %in% c("Pl_CS", "Upl_CS") ~ "Sectio",
+    TRUE ~ Birth_mode))
+
+Sample1 <- Sample1 %>%
+  mutate(Birth_mode_group = recode(Birth_mode_group, "Normal_del" = "Vaginal", 
+                                "Instrum_del" = "Instrumental_vaginal", 
+                                "Sectio" = "C-section")) %>% 
+  select(- mode_of_birth, - Birth_mode)
+
+Sample1 <- Sample1 %>%
+  mutate(Birth_mode_group = factor(Birth_mode_group,
+                                levels = c("Vaginal", "Instrumental_vaginal", "C-section")))
 # 3.4.4 Nutrition ---------------------------------------------------------
-## -> I will get the data
+table(Sample1$feeding_method_u3)
+# excl_bf   excl_ff   ff_plus partly_bf 
+# 1636       100        60      5391
+
+table(is.na(Sample1$feeding_method_u3)) # TRUE = 304
+
+# create new variable and rename the values (with recode)
+Sample1 <- Sample1 %>%
+  mutate(Feeding_group = feeding_method_u3)
+Sample1 <- Sample1 %>%
+  mutate(Feeding_group = recode(Feeding_group, "excl_bf" = "Fully_breastfed", 
+                                "partly_bf" = "Partly_breastfed", 
+                                "ff_plus" = "Mixed_feeding_no_breastfed", 
+                                "excl_ff" = "Formula_only")) %>% 
+  select(- feeding_method_u3)
+
+# in factor for analysis
+Sample1 <- Sample1 %>%
+  mutate(Feeding_group = factor(Feeding_group,
+                                levels = c("Fully_breastfed", "Partly_breastfed", "Mixed_feeding_no_breastfed", "Formula_only")))
 
 
 # 3.4.5 Newborn transfer -----------------------------------------------------
@@ -349,32 +365,32 @@ summary(Sample2)
 # Check admission_Muki
 table(is.na(Sample2$admission_postnatalunit))
 # FALSE  TRUE 
-# 6836   238 
+# 7207   284 
 
 # Double check cases not transferred directly from the labour ward to the postnatal unit
 Sample2_isna_transfer <- Sample2 %>% 
-  filter(is.na(admission_postnatalunit)) # 238
+  filter(is.na(admission_postnatalunit)) # 284
 
 # Identify the cases when not transferred to the postnatal unit
 Move_newborn <- left_join(Sample2_isna_transfer, Move_stat2f, by = c("patient_id_child" = "patient_id", "case_id_child" = "case_id")) %>% 
   select(patient_id_child, case_id_child, CBIS_BIRTH_DATE_TS, admission_neo, admission_neo_n, MOV_START_DATE_TS, MOV_END_DATE_TS, CAS_TYPE, MOV_KIND, MOV_TYPE,
-         MOV_REASON1, MOV_REASON2, unit_id, ORG) # 488, without distinct
+         MOV_REASON1, MOV_REASON2, unit_id, ORG) # 580, without distinct
 
 # Directly transferred from the labour ward to NICU
 Labour_dis_nicu <- Move_newborn %>% 
-  filter(admission_neo %in% "Yes") %>%  # 382
-  distinct(patient_id_child, case_id_child) # 191
+  filter(admission_neo %in% "Yes") %>%
+  distinct(patient_id_child, case_id_child) # 236
 
 # If not, where was the discharge?
 Labour_dis_nicu_no <- Move_newborn %>% 
-  filter(admission_neo %in% "No") %>%  # 106
-  distinct(patient_id_child, case_id_child) # 47
+  filter(admission_neo %in% "No") %>%  
+  distinct(patient_id_child, case_id_child) # 48
 
-## Other discharge reasons: Birth centre/other hospital n= 32; Home n= 7; Other unit within hospital n= 6; unsure n= 2
+## Other discharge reasons: Birth centre/other hospital n= 32; Home n= 7; Other unit within hospital n= 6; unsure n= 2, death n= 1
 
 # Dataset cleaned without cases with no transfer from the labour ward to neonatal unit
 Sample2 <- Sample2 %>% 
-  filter(!is.na(admission_postnatalunit)) # 6836
+  filter(!is.na(admission_postnatalunit)) # 7207
 
 # attr: Object Attributes, Description: Get or set specific attributes of an object.: attr(x, which) <- value
 # Sample2 <- Sample2 %>% 
@@ -385,17 +401,17 @@ Sample2 <- Sample2 %>%
 ## child
 Check_id_sample2_child <- Sample2 %>% 
   select(patient_id_child) %>% 
-  distinct # 6836
+  distinct # 7207
 Check_id_sample2_child2 <- Sample2 %>% 
   select(case_id_child) %>% 
-  distinct # 6836
+  distinct # 7207
 ## mother
 Check_id_sample2_mo <- Sample2 %>% 
   select(patient_id_mother) %>% 
-  distinct # 6244 -> mother gave more than one birth 
+  distinct # 6550 -> mother gave more than one birth 
 Check_id_sample2_mo2 <- Sample2 %>% 
   select(case_id_mother) %>% 
-  distinct # 6782
+  distinct # 7145
 
 rm(Check_id_sample2_child, Check_id_sample2_child2, Check_id_sample2_mo, Check_id_sample2_mo2, Sample1, Labour_dis_nicu, Labour_dis_nicu_no, Sample2_isna_transfer)
 
@@ -410,36 +426,44 @@ table(Sample2_dia_neonatal$ICD_labels) # overview diagnoses
 
 ## Include diagnoses: 
 # Included_icd_codes <- c("P55.1", "R63.4", "Q83.3", "Q69.2", "Z83.4", "Q82.5", "Q38.1", "Z83.5", "R01.0", "Z03.8", "Z03.3", "Z03.5", 
-#                         "P54.6", "H11.3", "R00.1", "P83.4", "L81.3", "U07.2", "Z38.0", "P92.0", "P91.1", "L53.0", "P83.1", "R25.3", 
-#                         "R50.80", "R50.9", "R14", "P05.1", "P05.0", "K21.9", "P12.1", "P15.5", "P12.9", "P15.3", "P15.4", "P13.8", 
-#                         "Q54.0", "D18.01", "D18.05", "P78.2", "P54.5", "K40.90", "K42.9", "R01.1", "R05", "P80.9", "Z83.1", "P12.0", 
-#                         "Z84.3", "Z20.6", "Z20.8", "Z20.5", "P90", "Z84.1", "Z83.2", "P83.9", "K13.2", "R22.0", "R22.2", 
-#                         "R22.3", "R59.0", "D22.6", "D22.5", "D22.3", "D22.9", "Q70.2", "P08.2", "D48.5", "P07.12", "P58.1", "P58.8", 
-#                         "P59.8", "P59.9", "Z24.6", "P38", "T14.03", "Q66.2", "Q66.4", "Q66.0", "L05.9", "Q18.1", "Z81", "P92.1", "D55.0",
-#                         "P55.0", "P92.5", "R90.8", "Q66.8", "Q67.4", "Q10.3", "P92.8", "Q54.8", "P08.1", "P07.3", "P13.1", "R25.1", 
-#                         "P12.8", "P14.3", "D23.4", "D23.9", "R01.2", "P70.4", "P80.8", "P51.8", "R68.8", "P15.8", "Z84.8", "L81.8", "P59.0",
-#                         "P81.8", "R19.88", "P72.8", "S09.8", "P96.8", "K00.8", "P94.8", "R23.8", "N83.2", "R39.8", "R29.8", "K09.8", 
-#                         "X59.9", "R50.88", "Z11", "U99.0", "P81.9", "K00.6", "P70.1", "P70.0", "R00.0", "M43.6", "P70.9", "P61.0", "E16.2",
+#                         "P54.6", "H11.3", "R00.1", "P83.4", "L81.3", "U07.2", "Z38.0", "P92.0", "L53.0", "P83.1", "R25.3", "D18.08", "D22.7",
+#                         "R50.80", "R50.9", "R14", "P05.1", "P05.0", "K21.9", "P12.1", "P15.5", "P12.9", "P15.3", "P15.4", "P13.8", "Q98.0", "Q70.0", "Q69.9", "Q70.3", 
+#                         "D18.01", "D18.05", "P78.2", "P54.5", "K40.90", "K42.9", "R01.1", "R05", "P80.9", "Z83.1", "P12.0", "Q63.2", "Q52.3", "Q54.1", "Q26.1",
+#                         "Z84.3", "Z20.6", "Z20.8", "Z20.5", "Z84.1", "Z83.2", "P83.9", "K13.2", "R22.0", "R22.2", "L98.8", "Q82.8", "Q53.0", "Q67.0", "Q67.6",
+#                         "R22.3", "R59.0", "D22.6", "D22.5", "D22.3", "D22.9", "Q70.2", "P08.2", "D48.5", "P07.12", "P58.1", "P58.8", "D18.18", "Q66.5", "Q67.3", 
+#                         "P59.8", "P59.9", "Z24.6", "P38", "T14.03", "Q66.2", "Q66.4", "Q66.0", "L05.9", "Q17.5", "Q18.1", "Q68.0", "Z81", "P92.1", "D55.0",
+#                         "P55.0", "P92.5", "R90.8", "Q66.8", "Q10.3", "P92.8", "P08.1", "P07.3", "P13.1", "R25.1", "Q54.0", "K06.8", "K07.1", "Q84.6", 
+#                         "P12.8", "P14.3", "D23.4", "D23.9", "R01.2", "P70.4", "P80.8", "P51.8", "R68.8", "P15.8", "Z84.8", "L81.8", "P59.0", "Z04.8",
+#                         "P81.8", "R19.88", "P72.8", "S09.8", "P96.8", "K00.8", "P94.8", "R23.8", "N83.2", "R39.1", "R39.8", "R29.8", "K09.8", 
+#                         "X59.9", "R50.88", "Z11", "U99.0", "P81.9", "K00.6", "P70.1", "P70.0", "R00.0", "M43.6", "P70.9", "P61.0", "E16.2", 
 #                         "P92.2", "P08.0", "P12.4", "R60.0", "R69", "W64.9", "Z04.3", "R23.4", "T81.2", "P96.3", "L22", "Z38.3", "Z38.5", "Y69", "Z83.3")
 
 
 ## Exclude diagnoses: 
-Exclude_icd_codes <- c("R93.4", "R93.1", "R93.0", "R93.3", "R94.8", "R94.3", "H27.9", "Q24.9", "Q04.0", "Q62.0", "P83.5", "Q62.2", "Q82.5", "R34", "P21.9", "P22.9", "Z82",
-                       "U07.1", "P76.9", "Q21.2", "Q50.1", "Z38.1", "P12.2", "B96.2", "P05.2", "P50.1", "P39.3", "P39.4", "P29.1", "G93.0", "Q54.9", "P39.9", "Z86.1", "P39.2",
-                       "P20.1", "P20.9", "P05.9", "Z29.0", "P39.1", "Z86.2", "Z86.7", "P21.1", "Q36.9", "E84.1", "Q02", "Q60.0", "Q61.4", "Q53.1", "Q25.0", "P29.3", "P61.1",
-                       "P04.0", "P02.7", "P03.3", "P03.0", "P00.0", "P01.2", "P01.3", "P03.4", "P02.5", "P02.1", "P03.1", "P04.1", "P03.8", "P02.2", "P02.6", "P04.2",
-                       "P01.1", "P03.2", "P21.0", "R90.8", "P28.4", "P22.8", "P29.8", "I78.8", "R39.1", "R76.8", "H21.8", "H11.8", "H02.8", "H57.8", "Q89.8", "Q82.8", 
-                       "Q15.8", "Q64.8", "Q17.8", "P54.8", "P61.8", "P39.8", "K06.8", "L98.8", "N28.8", "H61.8", "P78.8", "P83.8", "P28.8", "R06.88", "I63.8", "P76.8", 
-                       "Q17.3", "Q35.3", "B95.6", "P28.9", "R06.1", "Q70.9", "P22.1", "Q21.0", "Q21.1", "Z38.5", "M54.2", "P28.2")
+Exclude_icd_codes <- c("R93.4", "R93.1", "R93.0", "R93.3", "R94.8", "R94.3", "H27.9", "Q24.9", "Q03.0", "Q04.0", "Q62.0", "P83.5", "Q62.2", "R31", 
+                       "R34", "P21.9", "P22.9", "Z82", "I34.0", "U07.1", "P76.9", "Q21.2", "Q50.1", "Z38.1", "P12.2", "B96.2", "P05.2", "P50.1", "P39.3", 
+                       "P39.4", "P29.1", "G93.0", "P39.9", "Z86.1", "P39.2", "P20.0", "Q04.3", "P20.1", "P20.9", "P05.9", "Z29.0", "P39.1", "Z86.2", 
+                       "Z86.7", "P21.1", "Q33.2", "Q33.8", "Q36.1", "Q36.9", "E84.1", "Q02", "Q04.6", "Q18.8", "Q20.8", "Q22.2", "Q04.8", "Q52.9", 
+                       "Q60.0", "Q60.3", "Q61.3", "Q61.4", "Q62.3", "Q62.7", "Q63.1", "Q53.1", "Q54.8", "Q54.9", "Q67.4", "Q23.8", "Q25.0", "Q25.4", 
+                       "Q53.2", "Q72.3", "Q74.0", "P29.3", "P61.1", "Q65.8", "P04.0", "P02.7", "P03.3", "P03.0", "P00.0", "P01.2", "P01.3", "P00.2", 
+                       "P02.8", "Q52.4", "Q55.2", "Q62.8", "Q74.8", "Q63.8", "Q75.8", "P03.4", "P02.5", "P02.1", "P03.1", "P04.1", "P03.8", "P02.2", 
+                       "P02.6", "P04.2", "P01.1", "P03.2", "P21.0", "Q22.8", "R90.8", "P28.4", "P22.8", "P29.8", "I78.8", "R76.8", "H21.8", "H11.8", 
+                       "H02.8", "Q37.1", "H57.8", "Q89.8", "Q15.8", "Q64.7", "Q64.8", "Q17.8", "P54.8", "P61.8", "Q79.5", "P39.8", "N28.8", "N28.88", 
+                       "H61.8", "P78.8", "P83.8", "Q07.8", "P28.8", "R06.88", "I25.3", "I63.8", "P75", "P76.8", "Q17.3", "Q35.3", "B95.6", "P28.9", 
+                       "R06.1", "Q70.9", "Q74.2", "P22.1", "Q21.0", "Q21.1", "Q28.88", "Q30.0", "Q33.0", "Q39.0", "Q90.9", "Z38.5", "M54.2", "P28.2", 
+                       "P90", "P91.1", "B95.7", "Q25.6", "Q35.5", "Q37.4", "Q37.5")
+
+# In Diagnose data there are N28.8 and N28.88 (not for excel table because there is no N28.88 in the who icd-codes)
+
 # Check 
-length(Exclude_icd_codes) # 111
-length(unique(Exclude_icd_codes)) # 111
-Exclude_icd_codes[duplicated(Exclude_icd_codes)] # P28.8 was twice, and Stridor R06.1 was missing; now its correct
+length(Exclude_icd_codes) # 162
+length(unique(Exclude_icd_codes)) # 162
+Exclude_icd_codes[duplicated(Exclude_icd_codes)] # 0
 
 Newborns_excluded_diagnoses <- Sample2_dia_neonatal %>%
-  filter(DIA_NK %in% Exclude_icd_codes) %>%  # 1337 
-  distinct(patient_id_child, case_id_child) # 1110 cases, these are to exclude
-n_distinct(Sample2$case_id_child) # check 6836 cases
+  filter(DIA_NK %in% Exclude_icd_codes)  # 1327
+#   distinct(patient_id_child, case_id_child) # 1110 cases, these are to exclude
+# n_distinct(Sample2$case_id_child) # check 6836 cases
 
 Sample3 <- anti_join(Sample2, Newborns_excluded_diagnoses, by = c("patient_id_child", "case_id_child"))  
 n_distinct(Sample3$case_id_child) # check 5726 cases -> cleaned data set with only newborns with allowed diagnoses
