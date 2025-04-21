@@ -306,7 +306,7 @@ table(is.na(Sample1$mode_of_birth)) # 79
 
 # create new variable
 Sample1 <- Sample1 %>%
-  mutate(Birth_mode = mode_of_birth)
+  mutate(Birth_mode = ifelse(is.na(mode_of_birth), "No_data", mode_of_birth))
 
 Sample1 <- Sample1 %>% 
   mutate(Birth_mode_group = case_when(
@@ -314,14 +314,18 @@ Sample1 <- Sample1 %>%
     TRUE ~ Birth_mode))
 
 Sample1 <- Sample1 %>%
-  mutate(Birth_mode_group = recode(Birth_mode_group, "Normal_del" = "Vaginal", 
-                                "Instrum_del" = "Instrumental_vaginal", 
-                                "Sectio" = "C-section")) %>% 
-  select(- mode_of_birth, - Birth_mode)
+  mutate(Birth_mode_group = recode(Birth_mode_group, 
+                                   "Normal_del" = "Vaginal", 
+                                   "Instrum_del" = "Instrumental_vaginal", 
+                                   "Sectio" = "C-section",
+                                   "No_data" = "No_data"))  
+
+Sample1 <- Sample1 %>% 
+  select(-mode_of_birth, -Birth_mode)
 
 Sample1 <- Sample1 %>%
   mutate(Birth_mode_group = factor(Birth_mode_group,
-                                levels = c("Vaginal", "Instrumental_vaginal", "C-section")))
+                                   levels = c("Vaginal", "Instrumental_vaginal", "C-section", "No_data")))
 # 3.4.4 Nutrition ---------------------------------------------------------
 table(Sample1$feeding_method_u3)
 # excl_bf   excl_ff   ff_plus partly_bf 
@@ -331,18 +335,23 @@ table(is.na(Sample1$feeding_method_u3)) # TRUE = 304
 
 # create new variable and rename the values (with recode)
 Sample1 <- Sample1 %>%
-  mutate(Feeding_group = feeding_method_u3)
+  mutate(Feeding_group = if_else(is.na(feeding_method_u3), "No_data", feeding_method_u3))
+
 Sample1 <- Sample1 %>%
-  mutate(Feeding_group = recode(Feeding_group, "excl_bf" = "Fully_breastfed", 
+  mutate(Feeding_group = recode(Feeding_group, 
+                                "excl_bf" = "Fully_breastfed", 
                                 "partly_bf" = "Partly_breastfed", 
                                 "ff_plus" = "Mixed_feeding_no_breastfed", 
-                                "excl_ff" = "Formula_only")) %>% 
+                                "excl_ff" = "Formula_only",
+                                "No_data" = "No_data"))
+
+Sample1 <- Sample1 %>% 
   select(- feeding_method_u3)
 
 # in factor for analysis
 Sample1 <- Sample1 %>%
   mutate(Feeding_group = factor(Feeding_group,
-                                levels = c("Fully_breastfed", "Partly_breastfed", "Mixed_feeding_no_breastfed", "Formula_only")))
+                                levels = c("Fully_breastfed", "Partly_breastfed", "Mixed_feeding_no_breastfed", "Formula_only", "No_data")))
 
 
 # 3.4.5 Newborn transfer -----------------------------------------------------
@@ -461,12 +470,11 @@ length(unique(Exclude_icd_codes)) # 162
 Exclude_icd_codes[duplicated(Exclude_icd_codes)] # 0
 
 Newborns_excluded_diagnoses <- Sample2_dia_neonatal %>%
-  filter(DIA_NK %in% Exclude_icd_codes)  # 1327
-#   distinct(patient_id_child, case_id_child) # 1110 cases, these are to exclude
-# n_distinct(Sample2$case_id_child) # check 6836 cases
+  filter(DIA_NK %in% Exclude_icd_codes) %>%  # 1634
+  distinct(patient_id_child, case_id_child) # 1315 cases, these are to exclude
 
 Sample3 <- anti_join(Sample2, Newborns_excluded_diagnoses, by = c("patient_id_child", "case_id_child"))  
-n_distinct(Sample3$case_id_child) # check 5726 cases -> cleaned data set with only newborns with allowed diagnoses
+n_distinct(Sample3$case_id_child) # check 5892 cases -> cleaned data set with only newborns with allowed diagnoses
 
 
 # 3.4.7 Building Newborn groups -------------------------------------------
@@ -480,7 +488,7 @@ n_distinct(Sample3$case_id_child) # check 5726 cases -> cleaned data set with on
 # ICD-10 codes
 ## Diagnoses
 Hypothermia_icd <- c("P80.0", "P80.8", "P80.9")
-Hypoglycaemia_icd <- c("P70.4", "E16.2")
+Hypoglycaemia_icd <- c("P70.0", "P70.1", "P70.4", "P70.9", "E16.2")
 Hyperbilirubinaemia_icd <- c("P58.1", "P58.8", "P59.0", "P59.8", "P59.9")
 
 ## HHH RELEVANT RISK FACTORS (NEONATAL/MATERNAL)
@@ -489,9 +497,11 @@ Hyperbilirubinaemia_icd <- c("P58.1", "P58.8", "P59.0", "P59.8", "P59.9")
 # 3. Hyperbilirubinaemia: P07.3, D55.0, P55.0, P55.1, P12.0, Z83.2, P92.5, P92.2, P92.8, R63.4, Q38.1, P80.8, P80.9, P70.4, E16.2, P05.1 
 # 4. Maternal diagnose: D55.0, O24.0, O24.1, O24.4, E10.90, E10.91, E11.20, E11.90, E11.91, E13.90, E13.91,E14.90)
 
-Hypothermia_risk_icd <- c("P07.3", "P70.4", "E16.2", "P05.0", "P05.1", "P81.8", "P81.9")
-Hypoglycaemia_risk_icd <- c("P70.0", "P70.1", "P70.9", "Z83.3", "P80.8", "P80.9", "P58.1", "P58.8", "P59.0", "P59.8", "P59.9", "P05.0", "P05.1", "P07.3", "P08.0", "P08.1", "R63.4", "P92.5", "P92.2", "P92.8", "Q38.1")
-Hyperbilirubinaemia_risk_icd <- c("P07.3", "D55.0", "P55.0", "P55.1", "P12.0", "Z83.2", "Z83.3", "P92.5", "P92.2", "P92.8", "R63.4", "Q38.1", "P80.8", "P80.9", "P70.4", "E16.2", "P05.1")
+Hypothermia_risk_icd <- c("E16.2", "P05.0", "P05.1", "P07.1", "P07.3", "P70.0", "P70.1", "P70.4", "P70.9", "P81.8", "P81.9")
+Hypoglycaemia_risk_icd <- c("P05.0", "P05.1", "P07.1", "P07.3", "P08.0", "P08.1", "P58.1", "P58.8", "P59.0", "P59.8", "P59.9", "P80.0", "P80.8", "P80.9", "P92.0", "P92.2", "P92.5", "P92.8",
+                            "P92.9", "Q38.1", "R63.4", "Z83.3")
+Hyperbilirubinaemia_risk_icd <- c("D55.0", "E16.2", "P05.1", "P07.3", "P12.0", "P55.0", "P55.1", "P70.0", "P70.1", "P70.4", "P70.9", "P80.0", "P80.8", "P80.9", "P92.0", "P92.2", "P92.5", "P92.8",
+                                  "P92.9", "Q38.1", "R63.4"," Z83.2", "Z83.3")
 Maternal_risk_icd <- c("D55.0", "O24.0", "O24.1", "O24.4", "E10.90", "E10.91", "E11.20", "E11.90", "E11.91", "E13.90", "E13.91","E14.90")
 
 ## ICD codes related to HHH summarised
@@ -525,7 +535,7 @@ Sample3 <- Sample3 %>%
 
 table(Sample3$Risk_group)
 # With_RF    Without_RF 
-# 1808       3918 
+# 1900       3992
 
 # Subset in newborn without and with risk factors
 Newborn_group1 <- Sample3 %>% 
@@ -554,7 +564,7 @@ Maternal_DM_icd <- c("O24.0", "O24.1", "E10.90", "E10.91", "E11.20", "E11.90", "
 Maternal_RF_cases <- Sample_maternal_rf %>%
   filter(DIA_NK_maternal %in% Maternal_RF_icd) %>%
   distinct(patient_id_mother) %>%
-  mutate(Has_maternal_rf = TRUE) # 724
+  mutate(Has_maternal_rf = TRUE) # 741
 
 # Identify mother with gdm and dm type
 Maternal_DM <- Sample_maternal_rf %>%
@@ -569,7 +579,7 @@ Maternal_DM2 <- Sample_maternal_rf %>%
                                             maternal_gdm == TRUE ~ "GDM", 
                                             maternal_DM == TRUE ~ "preex_DM", TRUE ~ "No_diabetes")) # 
 
-# Differntiated diabetes type for group 2
+# Differentiated diabetes type for group 2
 Newborn_group2 <- left_join(Newborn_group2, Maternal_DM2, by = "patient_id_mother") %>% 
   mutate(Maternal_diabetes_type = factor(Maternal_diabetes_type, levels = c("No_diabetes", "GDM", "preex_DM", "DM_GDM"))) %>% # as factor for analysis
   select(-maternal_DM, -maternal_gdm)
@@ -577,23 +587,23 @@ Newborn_group2 <- left_join(Newborn_group2, Maternal_DM2, by = "patient_id_mothe
 # Check for group 1 
 Newborn_group1_test <- left_join(Newborn_group1, Maternal_DM2, by = "patient_id_mother") %>% 
   mutate(Maternal_diabetes_type = factor(Maternal_diabetes_type, levels = c("No_diabetes", "GDM", "preex_DM", "DM_GDM"))) %>% # as factor for analysis
-  select(-maternal_DM, -maternal_gdm) # there are n= 39 cases with GDM! These are to be moved to group 2
+  select(-maternal_DM, -maternal_gdm) # there are n= 42 cases with GDM! These are to be moved to group 2
 
 GDM_mothers <- Maternal_DM2 %>% 
-  filter(Maternal_diabetes_type == "GDM" | Maternal_diabetes_type == "DM_GDM") %>%
+  filter(Maternal_diabetes_type == "GDM") %>%
   select(patient_id_mother)
 
 Newborn_group1_c <- Newborn_group1 %>%
   anti_join(GDM_mothers, by = "patient_id_mother") # Gibt alle Beobachtungen des Data Frames x zurück, für die es keinen Match im Data Frame y gibt
 
 GDM_cases_to_add <- Newborn_group1 %>%
-  inner_join(GDM_mothers, by = "patient_id_mother") # 39
+  inner_join(GDM_mothers, by = "patient_id_mother") # 42
 
 Newborn_group2_c <- bind_rows(Newborn_group2, GDM_cases_to_add)
 
 Newborn_group2_c <- Newborn_group2_c %>%
   mutate(has_risk_icd = TRUE, Risk_group = "With_RF", Maternal_diabetes_type = replace_na(Maternal_diabetes_type, "GDM"))
-## Conclusion: Newborn group without rf n= 3879 and Newborn group with rf n= 1847
+## Conclusion: Newborn group without rf n= 3950 and Newborn group with rf n= 1942
 
 rm(Diag_neonatal, Diag_maternal, GDM_cases_to_add, GDM_mothers, Maternal_DM, Maternal_DM2, Maternal_RF_cases, Newborn_group1, Newborn_group2, Newborn_group1_test, Sample2)
 
@@ -634,7 +644,7 @@ Mother_data <- Mother_data %>%
   mutate(RF_Maternal_age = interval(start = PAT_BIRTH_DATE, end = Birth_date) / duration(n = 1, unit = "years"))
 summary(Mother_data$RF_Maternal_age)
 # Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
-# 14.55   30.50   33.78   33.54   36.91   52.37
+# 14.55   30.49   33.78   33.54   36.91   52.37
 
 Underage <- Mother_data %>% 
   filter(RF_Maternal_age < 18) # 8 cases
@@ -650,16 +660,16 @@ Newborn_group1_c <- left_join(Newborn_group1_c, Mother_data, by = c("patient_id_
   select(- Birth_date, - PAT_BIRTH_DATE, - CBIS_BIRTH_DATE_TS.y) %>% 
   rename(CBIS_BIRTH_DATE_TS = CBIS_BIRTH_DATE_TS.x)
 summary(Newborn_group1_c$RF_Maternal_age)
-# Min.   1st Qu.  Median    Mean  3rd Qu.    Max. 
-# 14.55   30.50   33.67    33.46   36.80    51.03 
+# Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+# 15.90   30.50   33.67   33.48   36.84   51.03
 
 ## Group 2
 Newborn_group2_c <- left_join(Newborn_group2_c, Mother_data, by = c("patient_id_mother", "case_id_mother")) %>% # without date of birth!
   select(- Birth_date, - PAT_BIRTH_DATE, - CBIS_BIRTH_DATE_TS.y) %>% 
   rename(CBIS_BIRTH_DATE_TS = CBIS_BIRTH_DATE_TS.x)
 summary(Newborn_group2_c$RF_Maternal_age)
-# Min.   1st Qu.  Median  Mean   3rd Qu.    Max. 
-# 17.44   30.53   33.97   33.71   37.06     52.37 
+# Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
+# 14.55   30.45   33.96   33.69   37.07   52.37 
 
 rm(Mother_data, Underage, Parity)
 
@@ -702,21 +712,22 @@ Newborn_group1_c <- left_join(Newborn_group1_c, Countries2b, by = "PAT_CITIZENSH
          -iso2, -iso3, -region_region_regione, - kontinent_continent_continente) 
 table(Newborn_group1_c$Country)
 # Africa     America      Asia      Europe    Oceania  Switzerland  Unknown 
-# 129         100         243        1716     8        1672          11 
+# 131         105         249        1752     8        1695         10 
 round(prop.table(table(as.factor(Newborn_group1_c$Country))) * 100, 1)
-# Africa     America      Asia      Europe     Oceania  Switzerland     Unknown 
-# 3.3         2.6         6.3        44.2       0.2        43.1         0.3 
+# Africa     America        Asia      Europe     Oceania Switzerland     Unknown 
+# 3.3         2.7         6.3        44.4         0.2        42.9         0.3 
 
 ## Group 2
 Newborn_group2_c <- left_join(Newborn_group2_c, Countries2b, by = "PAT_CITIZENSHIP_COUNTRY") %>% 
   select(- PAT_CITIZENSHIP_COUNTRY, - pat_citizenship_country_new, -landercode_bfs_code_des_pays_ofs_codice_del_paese_ust, 
          -iso2, -iso3, -region_region_regione, - kontinent_continent_continente) 
 table(Newborn_group2_c$Country)
-# Africa     America    Asia      Europe     Oceania   Switzerland     Unknown 
-# 87          57         188         758           4         751          2
+# Africa     America        Asia      Europe     Oceania Switzerland     Unknown 
+# 95          57         196         797           4         790           3 
+
 round(prop.table(table(as.factor(Newborn_group2_c$Country))) * 100, 1)
-# Africa     America    Asia      Europe     Oceania   Switzerland     Unknown 
-# 4.7         3.1        10.2       41.0        0.2        40.7         0.1 
+# Africa     America        Asia      Europe     Oceania Switzerland     Unknown 
+# 4.9         2.9        10.1        41.0         0.2        40.7         0.2
 
 rm(Countries_FOS, Countries_FOS1, Countries1, Countries2)
 
@@ -730,14 +741,17 @@ source("~/Thesis/Code/01_07_Code_Temp data.R")
 Missing_temp <- Sample3 %>% 
   filter(is.na(Hypothermia_cat))
 ## n= 1 Nicu admission, n= 6 ambulant/tagesklinik, 1 child no data entry
+Sample3 <- Sample3 %>% 
+  filter(!is.na(Hypothermia_cat)) # 5884
 
 # Group 1
 Missing_temp1 <- Newborn_group1_c %>% 
   filter(is.na(Hypothermia_cat))
 ## n= 5 ambulant/tagesklinik
 Newborn_group1_c <- Newborn_group1_c %>%
-  filter(!is.na(Hypothermia_cat)) # 3874
+  filter(!is.na(Hypothermia_cat)) # 3945
 
+# Group 2
 Missing_temp2 <- Newborn_group2_c %>% 
   filter(is.na(Hypothermia_cat))
 ## n= 1 ambulant/tagesklinik, n= 2 unknown
@@ -773,7 +787,7 @@ Newborn_group1_c <- Newborn_group1_c %>%
   select(- hypoglyc_y, - hypotherm_y, - hyperbili_y, - symptom_count)
 table(Newborn_group1_c$HHH_diagnoses)
 # Hyperbili_Hypothermia        Hyperbili_only        Hypoglyc_Hypothermia         Hypoglyc_only        Hypotherm_only       None 
-# 1                            10                    16                           13                   704                  3130
+# 1                            11                    16                           13                   724                  3180
 
 # Group 2
 Newborn_group2_c <- Newborn_group2_c %>%
@@ -795,31 +809,30 @@ Newborn_group2_c <- Newborn_group2_c %>%
   select(- hypoglyc_y, - hypotherm_y, - hyperbili_y, - symptom_count)
 table(Newborn_group2_c$HHH_diagnoses)
 # All_diagnoses        Hyperbili_Hypothermia        Hyperbili_only      Hypoglyc_Hypothermia         Hypoglyc_only        Hypotherm_only        None 
-# 1                    10                           18                  60                           97                    470                  1188
+# 1                    10                           19                  62                           97                    486                  1264
 
 
 # 4. Overview sample ------------------------------------------------------
 ## Whole sample
-summary(Sample4)
+summary(Sample3)
 # Whole sample
 # To change LOS from mins to h: attr: Object Attributes, Description: Get or set specific attributes of an object.: attr(x, which) <- value
-Sample_final_all <- Sample4 %>%
+Sample_final_all <- Sample3 %>%
   mutate(LOS = LOS/60)
 attr(Sample_final_all$LOS, "units") <- "h"
  
 # NICU admission
 ## Percentages Admission NICU
 Sample_final_nicu <- Sample_final_all %>%
-  filter(admission_neo_n == 1) # 47
+  filter(admission_neo_n == 1) # 46
 
 Sample_final_all %>%
   ungroup() %>%
   summarise(total = n(),
             admitted = sum(admission_neo_n %in% 1),
             percent = (admitted / total) * 100)
-# total  admitted  percent
-# <int>     <int>    <dbl>
-#1  5718       47    0.822
+#   <int>    <int>   <dbl>
+#1  5884       46   0.782
 
 # Group 1
 # To change LOS from mins to h: attr: Object Attributes, Description: Get or set specific attributes of an object.: attr(x, which) <- value
@@ -830,16 +843,16 @@ attr(Group1_final$LOS, "units") <- "h"
 # NICU admission
 ## Percentages Admission NICU
 Group1_final_nicu <- Group1_final %>%
-  filter(admission_neo_n == 1) # 47
+  filter(admission_neo_n == 1) # 2
 
 Group1_final %>%
   ungroup() %>%
   summarise(total = n(),
             admitted = sum(admission_neo_n %in% 1),
             percent = (admitted / total) * 100)
-# total admitted percent
-# <int>    <int>   <dbl>
-#1 3874       7   0.181
+#  total  admitted percent
+#  <int>   <int>   <dbl>
+#1  3945      2    0.0507
 
 # Group 2
 # To change LOS from mins to h: attr: Object Attributes, Description: Get or set specific attributes of an object.: attr(x, which) <- value
@@ -850,21 +863,16 @@ attr(Group2_final$LOS, "units") <- "h"
 # NICU admission
 ## Percentages Admission NICU
 Group2_final_nicu <- Group2_final %>%
-  filter(admission_neo_n == 1) # 40
+  filter(admission_neo_n == 1) # 44
 
 Group2_final %>%
   ungroup() %>%
   summarise(total = n(),
             admitted = sum(admission_neo_n %in% 1),
             percent = (admitted / total) * 100)
-# total admitted percent
-# <int>    <int>   <dbl>
-#1  1844      40    2.17
-
-
-
-
-
+#  total admitted percent
+#  <int>    <int>   <dbl>
+#1  1939      44    2.27
 
 
 # Overview: Newborns admitted Nicu
@@ -1050,31 +1058,6 @@ Group2_final %>%
 # table(Sample_final_nicu$Hyperbilirubinaemia_cat)
 # # Hyperbilirubinaemia_serum   Hyperbilirubinaemia_tcb         No_measurement        Physiological 
 # # 5                           2                               17                    23 
-
-## Newborn Group 2
-# summary(Newborn_group2)
-# Newborn_group2_final <- Newborn_group2 %>%
-#   mutate(LOS = LOS/60)
-# attr(Newborn_group2_final$LOS, "units") <- "h"
-# 
-# # NICU admission
-# ## Percentages Admission NICU
-# Newborn_group2_final_nicu <- Newborn_group2_final %>%
-#   filter(admission_neo_n == 1) # 18
-# 
-# Newborn_group2_final %>%
-#   ungroup() %>%
-#   summarise(total = n(),
-#             admitted = sum(admission_neo_n %in% 1),
-#             percent = (admitted / total) * 100)
-# # total admitted percent
-# # <int>    <int>   <dbl>
-# #1 136       18    13.2
-
-
-
-
-
 
 
 
