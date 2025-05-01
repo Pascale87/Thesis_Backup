@@ -1,7 +1,6 @@
 
 # 2. Import data sets --------------------------------------------------------
 # 2.a Data sets
-# load(file = "I:/Verwaltung/MaNtiS/03_Prozessierte_Daten/Birth_corr2.RData")
 load(file = "I:/Verwaltung/MaNtiS/03_Prozessierte_Daten/Birth_corr3_2025-04-18.RData")
 load(file = "I:/Verwaltung/MaNtiS/03_Prozessierte_Daten/Diagnose_red2_corr.RData")
 load(file = "I:/Verwaltung/MaNtiS/03_Prozessierte_Daten/DRG_red1.RData")
@@ -625,6 +624,9 @@ Parity <- parity1 %>%
   mutate(RF_parity = if_else(Anzahl_vorausg_LebGeb == 0, "Primi", "Multi")) %>% 
   mutate(RF_parity = factor(RF_parity, levels = c("Primi", "Multi")))
 
+Parity <- Parity %>% 
+  mutate(RF_parity = if_else(is.na(RF_parity), "Primi", RF_parity))
+
 # Merge with Samples 
 ## Whole sample
 Sample3 <- left_join(Sample3, Parity, by = c("patient_id_child", "case_id_child" = "case_id", "patient_id_mother", "case_id_mother")) %>% 
@@ -801,7 +803,7 @@ Newborn_group1_c <- Newborn_group1_c %>%
   select(- hypoglyc_y, - hypotherm_y, - hyperbili_y, - symptom_count)
 table(Newborn_group1_c$HHH_diagnoses)
 # Hyperbili_Hypothermia        Hyperbili_only        Hypoglyc_Hypothermia         Hypoglyc_only        Hypotherm_only       None 
-# 1                            11                    16                           13                   724                  3180
+# 1                            12                    16                           13                   724                  3179
 
 # Group 2
 Newborn_group2_c <- Newborn_group2_c %>%
@@ -823,7 +825,7 @@ Newborn_group2_c <- Newborn_group2_c %>%
   select(- hypoglyc_y, - hypotherm_y, - hyperbili_y, - symptom_count)
 table(Newborn_group2_c$HHH_diagnoses)
 # All_diagnoses        Hyperbili_Hypothermia        Hyperbili_only      Hypoglyc_Hypothermia         Hypoglyc_only        Hypotherm_only        None 
-# 1                    10                           19                  62                           97                    486                  1264
+# 1                    11                           22                  62                           97                    486                  1261
 
 
 # 4. Overview sample ------------------------------------------------------
@@ -868,6 +870,7 @@ Group1_final %>%
 #  <int>   <int>   <dbl>
 #1  3945      2    0.0507
 
+
 # Group 2
 # To change LOS from mins to h: attr: Object Attributes, Description: Get or set specific attributes of an object.: attr(x, which) <- value
 Group2_final <- Newborn_group2_c %>%
@@ -887,6 +890,29 @@ Group2_final %>%
 #  total admitted percent
 #  <int>    <int>   <dbl>
 #1  1939      44    2.27
+
+summary(Group2_final_nicu)
+
+Group2_final_nicu <- Group2_final_nicu %>%
+  rowwise() %>%  # to not sum all values in the whole column
+  mutate(hypoglyc_y = Hypoglycaemia_cat %in% c("Mild", "Moderate", "Severe"),
+         hyperbili_y = if_else(is.na(Hyperbilirubinaemia_cat), FALSE, Hyperbilirubinaemia_cat %in% c("Hyperbilirubinaemia_serum", "Hyperbilirubinaemia_tcb")),
+         hypotherm_y = if_else(is.na(Hypothermia_cat), FALSE, Hypothermia_cat %in% c("Mild", "Moderate_Severe")),
+         symptom_count = sum(c(hypoglyc_y, hyperbili_y, hypotherm_y), na.rm = TRUE),
+         HHH_diagnoses = case_when(
+           symptom_count == 0 ~ "None",
+           symptom_count == 1 & hypoglyc_y ~ "Hypoglyc_only",
+           symptom_count == 1 & hyperbili_y ~ "Hyperbili_only",
+           symptom_count == 1 & hypotherm_y ~ "Hypotherm_only",
+           symptom_count == 2 & hypoglyc_y & hyperbili_y ~ "Hypoglyc_Hyperbili",
+           symptom_count == 2 & hypoglyc_y & hypotherm_y ~ "Hypoglyc_Hypothermia",
+           symptom_count == 2 & hyperbili_y & hypotherm_y ~ "Hyperbili_Hypothermia",
+           symptom_count == 3 ~ "All_diagnoses",
+           TRUE ~ "Unknown")) %>% 
+  select(- hypoglyc_y, - hypotherm_y, - hyperbili_y, - symptom_count)
+table(Group2_final_nicu$HHH_diagnoses)
+# Hyperbili_Hypothermia        Hyperbili_only        Hypoglyc_Hypothermia         Hypoglyc_only       Hypotherm_only      None 
+# 1                            10                    12                            3                  7                   11 
 
 ## OLD
 # Overview: Newborns admitted Nicu
@@ -2146,12 +2172,12 @@ Bili_cat_USB_measure2 <- Bili_cat_USB_measure %>%
   mutate(has_tc_photo = any(Bili_levels == "bili_tc_photo"),
          has_serum_photo = any(Bili_levels == "bili_serum_photo"),
          has_serum_norm = any(Bili_levels == "bili_serum_norm"),
-         has_any_serum = has_serum_photo | has_serum_norm,
          Hyperbilirubinaemia_cat = case_when(
-           has_tc_photo & has_any_serum ~ "Hyperbilirubinaemia_serum",
-           has_tc_photo & !has_any_serum ~ "Hyperbilirubinaemia_tcb",
+           has_serum_photo ~ "Hyperbilirubinaemia_serum",
+           has_tc_photo ~ "Hyperbilirubinaemia_tcb",
            TRUE ~ "Physiological")) %>%
   ungroup()
+
 
 
 # 4.2.2 Phototherapy ------------------------------------------------------
