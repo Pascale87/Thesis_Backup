@@ -1,4 +1,3 @@
-
 # 2. Import data sets --------------------------------------------------------
 # 2.a Data sets
 load(file = "I:/Verwaltung/MaNtiS/03_Prozessierte_Daten/Birth_corr3_2025-04-18.RData")
@@ -12,12 +11,9 @@ load(file = "I:/Verwaltung/MaNtiS/03_Prozessierte_Daten/LOS_newborns_2025-03-06.
 load(file = "I:/Verwaltung/MaNtiS/03_Prozessierte_Daten/parity_2024-06-19.RData")
 load(file = "I:/Verwaltung/MaNtiS/03_Prozessierte_Daten/Meona_corr2_reduced.RData")
 
-
 # 2.b Pseudonymised data sets: Consent 
 Consent <- read_feather("I:/Verwaltung/MaNtiS/02_Pseudonymisierte_Daten/Consent_pseud.feather")
 Temp_data <- read_feather("I:/Verwaltung/MaNtiS/02_Pseudonymisierte_Daten/Temp_pseud.feather")
-
-
 
 # 3. Birth information ----------------------------------------------------
 # 3.1 Birth_corr2 ------------------------------------
@@ -591,12 +587,15 @@ Newborn_group2 <- left_join(Newborn_group2, Maternal_DM2, by = "patient_id_mothe
 # Check for group 1 
 Newborn_group1_test <- left_join(Newborn_group1, Maternal_DM2, by = "patient_id_mother") %>% 
   mutate(Maternal_diabetes_type = factor(Maternal_diabetes_type, levels = c("No_diabetes", "GDM", "preex_DM", "DM_GDM"))) %>% # as factor for analysis
-  select(-maternal_DM, -maternal_gdm) # there are n= 42 cases with GDM! These are to be moved to group 2
+  select(-maternal_DM, -maternal_gdm) 
+## Conclusion: there are n = 42 cases with GDM! These are to be moved to group 2
 
+# Identify Mothers with GDM
 GDM_mothers <- Maternal_DM2 %>% 
   filter(Maternal_diabetes_type == "GDM") %>%
   select(patient_id_mother) # 708
 
+# Remove the cases in question in Group 1
 Newborn_group1_c <- Newborn_group1 %>%
   anti_join(GDM_mothers, by = "patient_id_mother") %>% # Gibt alle Beobachtungen des Data Frames x zurück, für die es keinen Match im Data Frame y gibt
   select(- has_risk_icd)
@@ -604,11 +603,25 @@ Newborn_group1_c <- Newborn_group1 %>%
 GDM_cases_to_add <- Newborn_group1 %>%
   inner_join(GDM_mothers, by = "patient_id_mother") # 42
 
+# Add the cases in question to Group 2
 Newborn_group2_c <- bind_rows(Newborn_group2, GDM_cases_to_add)
 
 Newborn_group2_c <- Newborn_group2_c %>%
   mutate(has_risk_icd = TRUE, Risk_group = "With_RF", Maternal_diabetes_type = replace_na(Maternal_diabetes_type, "GDM"))
 ## Conclusion: Newborn group without rf n= 3950 and Newborn group with rf n= 1942
+
+# Transforming the 42 cases also in the whole sample for later analysis
+gdm_patient_ids <- GDM_cases_to_add$patient_id_mother
+
+length(unique(gdm_patient_ids)) # 41, twins
+
+Sample3 <- Sample3 %>%
+  mutate(Risk_group = case_when(patient_id_mother %in% gdm_patient_ids ~ "With_RF",
+      TRUE ~ Risk_group)) # IF patient_id_mother is included in the list gdm_patient_ids then set Risk_group to ‘With_RF’
+
+table(Sample3$Risk_group)
+# With_RF  Without_RF 
+# 1942       3950 
 
 rm(Diag_neonatal, Diag_maternal, GDM_cases_to_add, GDM_mothers, Maternal_DM, Maternal_DM2, Maternal_RF_cases, Newborn_group1, Newborn_group2, Newborn_group1_test, Sample2)
 
@@ -624,8 +637,14 @@ Parity <- parity1 %>%
   mutate(RF_parity = if_else(Anzahl_vorausg_LebGeb == 0, "Primi", "Multi")) %>% 
   mutate(RF_parity = factor(RF_parity, levels = c("Primi", "Multi")))
 
+# There are cases with NAs -> change to primi
 Parity <- Parity %>% 
-  mutate(RF_parity = if_else(is.na(RF_parity), "Primi", RF_parity))
+  mutate(RF_parity = if_else(is.na(RF_parity), "Primi", RF_parity)) 
+
+# As factor
+Sample3 <- Sample3 %>%
+  mutate(RF_parity = factor(RF_parity,
+                                levels = c("Primi", "Multi")))
 
 # Merge with Samples 
 ## Whole sample
@@ -804,6 +823,9 @@ Newborn_group1_c <- Newborn_group1_c %>%
 table(Newborn_group1_c$HHH_diagnoses)
 # Hyperbili_Hypothermia        Hyperbili_only        Hypoglyc_Hypothermia         Hypoglyc_only        Hypotherm_only       None 
 # 1                            12                    16                           13                   724                  3179
+round(prop.table(table(as.factor(Newborn_group1_c$HHH_diagnoses))) * 100, 1)
+# Hyperbili_Hypothermia        Hyperbili_only        Hypoglyc_Hypothermia         Hypoglyc_only        Hypotherm_only         None 
+# 0.0                          0.3                   0.4                           0.3                  18.4                  80.6 
 
 # Group 2
 Newborn_group2_c <- Newborn_group2_c %>%
@@ -826,12 +848,19 @@ Newborn_group2_c <- Newborn_group2_c %>%
 table(Newborn_group2_c$HHH_diagnoses)
 # All_diagnoses        Hyperbili_Hypothermia        Hyperbili_only      Hypoglyc_Hypothermia         Hypoglyc_only        Hypotherm_only        None 
 # 1                    11                           22                  62                           97                    486                  1261
-
+round(prop.table(table(as.factor(Newborn_group2_c$HHH_diagnoses))) * 100, 1)
+# All_diagnoses         Hyperbili_Hypothermia        Hyperbili_only       Hypoglyc_Hypothermia         Hypoglyc_only        Hypotherm_only       None 
+# 0.1                   0.6                           1.1                   3.2                         5.0                  25.0                 65.0
 
 # 4. Overview sample ------------------------------------------------------
 ## Whole sample
 summary(Sample3)
-# Whole sample
+table(Sample3$Risk_group)
+
+# Remove variables not needed
+Sample3 <- Sample3 %>% 
+  select(- has_neonatal_rf, - has_maternal_rf, - has_risk_icd)
+
 # To change LOS from mins to h: attr: Object Attributes, Description: Get or set specific attributes of an object.: attr(x, which) <- value
 Sample_final_all <- Sample3 %>%
   mutate(LOS = LOS/60)
@@ -870,6 +899,26 @@ Group1_final %>%
 #  <int>   <int>   <dbl>
 #1  3945      2    0.0507
 
+Group1_final_nicu <- Group1_final_nicu %>%
+  rowwise() %>%  # to not sum all values in the whole column
+  mutate(hypoglyc_y = Hypoglycaemia_cat %in% c("Mild", "Moderate", "Severe"),
+         hyperbili_y = if_else(is.na(Hyperbilirubinaemia_cat), FALSE, Hyperbilirubinaemia_cat %in% c("Hyperbilirubinaemia_serum", "Hyperbilirubinaemia_tcb")),
+         hypotherm_y = if_else(is.na(Hypothermia_cat), FALSE, Hypothermia_cat %in% c("Mild", "Moderate_Severe")),
+         symptom_count = sum(c(hypoglyc_y, hyperbili_y, hypotherm_y), na.rm = TRUE),
+         HHH_diagnoses = case_when(
+           symptom_count == 0 ~ "None",
+           symptom_count == 1 & hypoglyc_y ~ "Hypoglyc_only",
+           symptom_count == 1 & hyperbili_y ~ "Hyperbili_only",
+           symptom_count == 1 & hypotherm_y ~ "Hypotherm_only",
+           symptom_count == 2 & hypoglyc_y & hyperbili_y ~ "Hypoglyc_Hyperbili",
+           symptom_count == 2 & hypoglyc_y & hypotherm_y ~ "Hypoglyc_Hypothermia",
+           symptom_count == 2 & hyperbili_y & hypotherm_y ~ "Hyperbili_Hypothermia",
+           symptom_count == 3 ~ "All_diagnoses",
+           TRUE ~ "Unknown")) %>% 
+  select(- hypoglyc_y, - hypotherm_y, - hyperbili_y, - symptom_count)
+table(Group1_final_nicu$HHH_diagnoses)
+# Hypotherm_only None 
+# 1              1 
 
 # Group 2
 # To change LOS from mins to h: attr: Object Attributes, Description: Get or set specific attributes of an object.: attr(x, which) <- value
@@ -913,6 +962,19 @@ Group2_final_nicu <- Group2_final_nicu %>%
 table(Group2_final_nicu$HHH_diagnoses)
 # Hyperbili_Hypothermia        Hyperbili_only        Hypoglyc_Hypothermia         Hypoglyc_only       Hypotherm_only      None 
 # 1                            10                    12                            3                  7                   11 
+round(prop.table(table(as.factor(Group2_final_nicu$HHH_diagnoses))) * 100, 1)
+# Hyperbili_Hypothermia       Hyperbili_only       Hypoglyc_Hypothermia         Hypoglyc_only        Hypotherm_only       None 
+# 2.3                         22.7                  27.3                        6.8                  15.9                 25.0 
+
+# LOS
+LOS_Group2_NICU <- Group2_final_nicu %>%
+  filter(LOS < 24) # 26
+
+n_under_24 <- 26
+n_total <- 44
+
+percent_under_24 <- round((n_under_24 / n_total) * 100, 1)
+percent_under_24 # 59.1
 
 ## OLD
 # Overview: Newborns admitted Nicu
