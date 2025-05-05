@@ -2974,6 +2974,210 @@ ft9 <- autofit(ft9)
 ft9
 
 
+## Inferential Analysis
+
+# Logistic regression
+## Univariate regression with HHH - Whole sample
+
+# Hypothermia
+summary(glm(admission_neo_n ~ Hypothermia_cat, data = Sample_final_all, family = binomial))
+# (Intercept)                    -5.20598    0.20055 -25.959  < 2e-16 ***
+# Hypothermia_catMild             0.08321    0.49134   0.169    0.866    
+# Hypothermia_catModerate_Severe  1.89180    0.32402   5.838 5.27e-09 ***
+
+mod_hypot <- glm(admission_neo_n ~ Hypothermia_cat, data = Sample_final_all, family = binomial)
+exp(cbind("Odds ratio" = coef(mod_hypot), confint.default(mod_hypot, level = 0.95)))
+#                                  Odds ratio    2.5 %       97.5 %
+# (Intercept)                    0.005483659 0.003701383  0.008124129
+# Hypothermia_catMild            1.086769964 0.414869553  2.846844142
+# Hypothermia_catModerate_Severe 6.631272727 3.513876568 12.514320619
+
+# Hypoglycaemia
+summary(glm(admission_neo_n ~ Hypoglycaemia_cat, data = Sample_final_all, family = binomial))
+# (Intercept)                       -5.6181     0.2677 -20.983  < 2e-16 ***
+# Hypoglycaemia_catNormoglycaemic    0.9508     0.3620   2.626  0.00863 ** 
+# Hypoglycaemia_catMild            -12.9480   588.1266  -0.022  0.98244    
+# Hypoglycaemia_catModerate        -12.9480  1684.1381  -0.008  0.99387    
+# Hypoglycaemia_catSevere            4.7426     0.4076  11.636  < 2e-16 ***
+## --> sehr auffällig mild und moderate
+
+table(Sample_final_all$Hypoglycaemia_cat, Sample_final_all$admission_neo_n)
+#                   0    1
+# Normoglycaemic 1809   17
+# Mild            123    0
+# Moderate         15    0
+# Severe           36   15
+# No_measurement 3855   14
+
+mod_hypoglyc <- glm(admission_neo_n ~ Hypoglycaemia_cat, data = Sample_final_all, family = binomial)
+exp(cbind("Odds ratio" = coef(mod_hypoglyc), confint.default(mod_hypoglyc, level = 0.95)))
+#                                 Odds ratio        2.5 %       97.5 %
+# (Intercept)                     3.631647e-03  0.002148809 6.137755e-03
+# Hypoglycaemia_catNormoglycaemic 2.587657e+00  1.272763997 5.260966e+00
+# Hypoglycaemia_catMild           2.380977e-06  0.000000000          Inf
+# Hypoglycaemia_catModerate       2.380977e-06  0.000000000          Inf
+# Hypoglycaemia_catSevere         1.147321e+02 51.610840605 2.550523e+02
+
+# Hyperbilirubinaemia
+summary(glm(admission_neo_n ~ Hyperbilirubinaemia_cat, data = Sample_final_all, family = binomial))
+# (Intercept)                                       -3.5355     0.2536 -13.940  < 2e-16 ***
+# Hyperbilirubinaemia_catPhysiological              -2.0866     0.3423  -6.097 1.08e-09 ***
+# Hyperbilirubinaemia_catHyperbilirubinaemia_tcb     1.5206     0.5896   2.579  0.00991 ** 
+# Hyperbilirubinaemia_catHyperbilirubinaemia_serum   3.6897     0.6114   6.034 1.59e-09 ***
+
+table(Sample_final_all$Hyperbilirubinaemia_cat, Sample_final_all$admission_neo_n)
+# No_measurement             549   16
+# Physiological             5253   19
+# Hyperbilirubinaemia_tcb     30    4
+# Hyperbilirubinaemia_serum    6    7
+
+mod_hyperbili <- glm(admission_neo_n ~ Hyperbilirubinaemia_cat, data = Sample_final_all, family = binomial)
+exp(cbind("Odds ratio" = coef(mod_hyperbili), confint.default(mod_hyperbili, level = 0.95)))
+#                                                   Odds ratio       2.5 %       97.5 %
+# (Intercept)                                       0.0291439  0.01772836   0.04791006
+# Hyperbilirubinaemia_catPhysiological              0.1241077  0.06345501   0.24273434
+# Hyperbilirubinaemia_catHyperbilirubinaemia_tcb    4.5750000  1.44046735  14.53044040
+# Hyperbilirubinaemia_catHyperbilirubinaemia_serum 40.0312500 12.07674582 132.69311123
+
+## Group 1
+# Hypothermia
+mod_hypot_g1 <- glm(admission_neo_n ~ Hypothermia_cat, data = Group1_final, family = binomial)
+exp(cbind("Odds ratio" = coef(mod_hypot_g1), confint.default(mod_hypot_g1, level = 0.95)))
+#                                 Odds ratio        2.5 %      97.5 %
+# (Intercept)                    3.122073e-04 4.396516e-05  0.00221706
+# Hypothermia_catMild            6.089354e+00 3.802984e-01 97.50297645
+# Hypothermia_catModerate_Severe 1.378899e-06 0.000000e+00         Inf
+
+# Hypoglycaemia
+mod_hypogly_g1 <- glm(admission_neo_n ~ Hypoglycaemia_cat, data = Group1_final, family = binomial)
+exp(cbind("Odds ratio" = coef(mod_hypogly_g1), confint.default(mod_hypogly_g1, level = 0.95)))
+#                                 Odds ratio        2.5 %       97.5 %
+# (Intercept)                     3.169572e-04 4.463384e-05  0.002250801
+# Hypoglycaemia_catNormoglycaemic 4.156785e+00 2.597078e-01 66.531933220
+# Hypoglycaemia_catMild           1.003607e-05 0.000000e+00          Inf
+# Hypoglycaemia_catModerate       1.003607e-05 0.000000e+00          Inf
+# Hypoglycaemia_catSevere         1.003607e-05 0.000000e+00          Inf
+
+# Hyperbilirubinaemia
+mod_hyperbili_g1 <- glm(admission_neo_n ~ Hyperbilirubinaemia_cat, data = Group1_final, family = binomial)
+exp(cbind("Odds ratio" = coef(mod_hyperbili_g1), confint.default(mod_hyperbili_g1, level = 0.95)))
+#                                                   Odds ratio 2.5 % 97.5 %
+# (Intercept)                                      1.583729e-10     0    Inf
+# Hyperbilirubinaemia_catPhysiological             3.592723e+06     0    Inf
+# Hyperbilirubinaemia_catHyperbilirubinaemia_tcb   1.000000e+00     0    Inf
+# Hyperbilirubinaemia_catHyperbilirubinaemia_serum 1.000000e+00     0    Inf
+
+# Model Group 1
+mod_g1 <- glm(admission_neo_n ~ Hypothermia_cat + Hypoglycaemia_cat + Hyperbilirubinaemia_cat, family = binomial, data = Group1_final) 
+# -> glm.fit: Angepasste Wahrscheinlichkeiten mit numerischem Wert 0 oder 1 aufgetreten --> nicht interpretierbar
+
+## Group 2
+# Hypothermia
+mod_hypot_g2 <- glm(admission_neo_n ~ Hypothermia_cat, data = Group2_final, family = binomial)
+exp(cbind("Odds ratio" = coef(mod_hypot_g2), confint.default(mod_hypot_g2, level = 0.95)))
+#                                Odds ratio      2.5 %     97.5 %
+# (Intercept)                    0.01769912 0.01182143 0.02649923
+# Hypothermia_catMild            0.72204473 0.24875657 2.09581839
+# Hypothermia_catModerate_Severe 4.00000000 2.09223694 7.64731743
+
+# Hypoglycaemia
+mod_hypogly_g2 <- glm(admission_neo_n ~ Hypoglycaemia_cat, data = Group2_final, family = binomial)
+exp(cbind("Odds ratio" = coef(mod_hypogly_g2), confint.default(mod_hypogly_g2, level = 0.95)))
+#                                 Odds ratio        2.5 %      97.5 %
+# (Intercept)                     1.523810e-02  0.009300688  0.02496585
+# Hypoglycaemia_catMild           5.674508e-07  0.000000000         Inf
+# Hypoglycaemia_catModerate       5.674508e-07  0.000000000         Inf
+# Hypoglycaemia_catSevere         3.076172e+01 13.998335990 67.59970193
+# Hypoglycaemia_catNo_measurement 1.218750e+00  0.582611055  2.54947370
+
+# Hyperbilirubinaemia
+mod_hyperbili_g2 <- glm(admission_neo_n ~ Hyperbilirubinaemia_cat, data = Group2_final, family = binomial)
+exp(cbind("Odds ratio" = coef(mod_hyperbili_g2), confint.default(mod_hyperbili_g2, level = 0.95)))
+#                                                  Odds ratio        2.5 %      97.5 %
+# (Intercept)                                      9.781358e-03  0.006066629   0.0157707
+# Hyperbilirubinaemia_catHyperbilirubinaemia_tcb   2.271895e+01  6.952899196  74.2353466
+# Hyperbilirubinaemia_catHyperbilirubinaemia_serum 1.431294e+02 41.292061585 496.1251077
+# Hyperbilirubinaemia_catNo_measurement            1.220720e+01  6.032077950  24.7038775
+
+# Model Group 2
+
+mod_g2 <- glm(admission_neo_n ~ Hypothermia_cat + Hypoglycaemia_cat + Hyperbilirubinaemia_cat, family = binomial, data = Group2_final)
+summary(mod_g2)
+# glm(formula = admission_neo_n ~ Hypothermia_cat + Hypoglycaemia_cat + 
+#       Hyperbilirubinaemia_cat, family = binomial, data = Group2_final)
+# 
+# Coefficients:
+#                                                       Estimate Std. Error z value Pr(>|z|)    
+# (Intercept)                                        -5.04028    0.36160 -13.939  < 2e-16 ***
+# Hypothermia_catMild                                -0.63996    0.60775  -1.053   0.2923    
+# Hypothermia_catModerate_Severe                      0.99311    0.42876   2.316   0.0205 *  
+# Hypoglycaemia_catMild                             -14.84228 1047.85260  -0.014   0.9887    
+# Hypoglycaemia_catModerate                         -14.62926 2832.93115  -0.005   0.9959    
+# Hypoglycaemia_catSevere                             3.23659    0.47404   6.828 8.63e-12 ***
+# Hypoglycaemia_catNo_measurement                    -0.09708    0.43298  -0.224   0.8226    
+# Hyperbilirubinaemia_catHyperbilirubinaemia_tcb      3.69127    0.64345   5.737 9.66e-09 ***
+# Hyperbilirubinaemia_catHyperbilirubinaemia_serum    5.42626    0.67587   8.029 9.86e-16 ***
+# Hyperbilirubinaemia_catNo_measurement               2.01782    0.41519   4.860 1.17e-06 ***
+
+exp(cbind("Odds ratio" = coef(mod_g2), confint.default(mod_g2, level = 0.95)))
+
+mod_g2_2 <- glm(admission_neo_n ~ Hypothermia_cat + Hypoglycaemia_cat + Hyperbilirubinaemia_cat + gestational_age_total_days, family = binomial, data = Group2_final)
+summary(mod_g2_2)
+
+mod_g2_3 <- glm(admission_neo_n ~ Hypothermia_cat + Hypoglycaemia_cat + Hyperbilirubinaemia_cat + gestational_age_total_days + Birth_weight_g, family = binomial, data = Group2_final)
+summary(mod_g2_3)
+
+
+## FORWARD SELECTION
+# Fit the initial null model (aus www.geeksforgeeks.org/stepwise-regression-in-r/)
+model_null <- glm(admission_neo_n ~ 1, family = binomial, data = Group2_final)
+forward_mod_g2 <- step(model_null, scope = ~ Hypothermia_cat + Hypoglycaemia_cat + Hyperbilirubinaemia_cat + gestational_age_total_days + Birth_weight_g + Birth_mode_group +
+                           Feeding_group + RF_parity + RF_Maternal_age + Country, direction = "forward")
+
+# Final model
+forward_final_mod_g2 <- forward_mod_g2
+summary(forward_final_mod_g2)
+exp(cbind("Odds ratio" = coef(forward_final_mod_g2), confint.default(forward_final_mod_g2, level = 0.95)))
+
+#                                                   Odds ratio        2.5 %       97.5 %
+#   (Intercept)                                    1.098040e-02  0.003212793   0.03752784
+# Hyperbilirubinaemia_catHyperbilirubinaemia_tcb   4.217242e+01 11.768195700 151.12874413
+# Hyperbilirubinaemia_catHyperbilirubinaemia_serum 2.460634e+02 62.510276601 968.59609475
+# Hyperbilirubinaemia_catNo_measurement            7.553291e+00  3.295206700  17.31369338
+# Hypoglycaemia_catMild                            3.796346e-07  0.000000000          Inf
+# Hypoglycaemia_catModerate                        4.937853e-07  0.000000000          Inf
+# Hypoglycaemia_catSevere                          2.418322e+01  9.123145383  64.10377518
+# Hypoglycaemia_catNo_measurement                  7.853707e-01  0.323236242   1.90822398
+# Hypothermia_catMild                              4.450050e-01  0.133356409   1.48496420
+# Hypothermia_catModerate_Severe                   2.234211e+00  0.924371353   5.40010095
+# Feeding_groupPartly_breastfed                    5.536444e-01  0.185242644   1.65470583
+# Feeding_groupMixed_feeding_no_breastfed          6.698961e+00  1.033881382  43.40544388
+# Feeding_groupFormula_only                        7.839026e-01  0.042317182  14.52136459
+# Feeding_groupNo_data                             7.015247e+07  0.000000000          Inf
+
+## BACKWARD SELECTION
+model_full_g2 <- glm(admission_neo_n ~ Hypothermia_cat + Hypoglycaemia_cat + Hyperbilirubinaemia_cat + gestational_age_total_days + Birth_weight_g + Birth_mode_group + Feeding_group + 
+                    RF_parity + RF_Maternal_age + Country, family = binomial, data = Group2_final)
+
+backward_mod_g2 <- step(model_full_g2, direction = "backward")
+
+# Final model
+backward_final_mod_g2 <- backward_mod_g2
+summary(backward_final_mod_g2)
+exp(cbind("Odds ratio" = coef(backward_final_mod_g2), confint.default(backward_final_mod_g2, level = 0.95)))
+
+## Whole sample
+
+model_wholesample <- glm(admission_neo_n ~ Hypothermia_cat + Hypoglycaemia_cat + Hyperbilirubinaemia_cat + gestational_age_total_days + Birth_weight_g + Birth_mode_group + Feeding_group + 
+                           RF_parity + RF_Maternal_age + Country, + Risk_group, family = binomial, data = Sample_final_all)
+
+interaction_model <- glm(admission_neo_n ~ (Hypothermia_cat + Hypoglycaemia_cat + Hyperbilirubinaemia_cat + Feeding_group) * Risk_group, family = binomial, data = Sample_final_all)
+
+
+
+
+
+
 
 
 
