@@ -1,6 +1,6 @@
 # 2. Import data sets --------------------------------------------------------
 # 2.a Data sets
-load(file = "I:/Verwaltung/MaNtiS/03_Prozessierte_Daten/Birth_corr3_2025-04-18.RData")
+load(file = "I:/Verwaltung/MaNtiS/03_Prozessierte_Daten/Birth_corr3_2025-04-22.RData")
 load(file = "I:/Verwaltung/MaNtiS/03_Prozessierte_Daten/Diagnose_red2_corr.RData")
 load(file = "I:/Verwaltung/MaNtiS/03_Prozessierte_Daten/DRG_red1.RData")
 load(file = "I:/Verwaltung/MaNtiS/03_Prozessierte_Daten/Move_stat2f.RData")
@@ -28,9 +28,9 @@ summary(Birth_corr3$CBIS_BIRTH_DATE_TS)
 # "2019-01-01 01:26:00.0000" "2019-12-21 18:54:45.0000" "2021-01-05 15:17:00.0000" "2020-12-30 15:21:19.3272" "2021-12-24 07:42:30.0000" "2022-12-31 16:17:00.0000" 
 # Conclusion: no exclusions
 
-# patient_id_child
+# # patient_id_child
 # sum(is.na(Birth_corr3$patient_id_child)) # there are 2 NAs
-# ## case_id_child
+# # case_id_child
 # sum(is.na(Birth_corr3$case_id_child)) # there are 2 NAs
 # na_case <- Birth_corr3 %>%
 #   filter(is.na(case_id_child)) # 2 stillbirths
@@ -247,8 +247,8 @@ Sample1 <- Sample1 %>%
   rename(Birth_weight_g = CBIS_WEIGHT) # 7497
 
 # Build categories for the descriptive analysis (500g step)
-Sample1 <- Sample1 %>% 
-  filter(Birth_weight_g >= 2500 & Birth_weight_g <= 4500) %>% 
+Sample1 <- Sample1 %>%
+  filter(Birth_weight_g >= 2500 & Birth_weight_g <= 4500) %>%
   mutate(Weight_cat = case_when(Birth_weight_g >= 2500 & Birth_weight_g < 3000 ~ "2500-2999",
                                 Birth_weight_g >= 3000 & Birth_weight_g < 3500 ~ "3000-3500",
                                 Birth_weight_g >= 3500 & Birth_weight_g < 4000 ~ "3500-4000",
@@ -301,29 +301,31 @@ rm(Lookup1, Weight_exclude, Consent_check, Consent_check2, Consent_exclude_child
 
 # 3.4.3 Mode of delivery --------------------------------------------------
 table(Sample1$mode_of_birth)
-# Instrum_del  Normal_del  Pl_CS      Upl_CS 
-# 1077         3753        1455       1127 
+# Instrum_del  Normal_del       Pl_CS     Upl_CS 
+# 1082        3771              1495      1143 
 
-table(is.na(Sample1$mode_of_birth)) # 79
+table(is.na(Sample1$mode_of_birth)) # no NAs
 
 # create new variable
-Sample1 <- Sample1 %>%
-  mutate(Birth_mode = ifelse(is.na(mode_of_birth), "No_data", mode_of_birth))
+# Sample1 <- Sample1 %>%
+#   mutate(Birth_mode = ifelse(is.na(mode_of_birth), "No_data", mode_of_birth))
 
 Sample1 <- Sample1 %>%
-  mutate(Birth_mode = recode(Birth_mode, 
+  mutate(Birth_mode = recode(mode_of_birth, 
                                    "Normal_del" = "Vaginal", 
                                    "Instrum_del" = "Instrumental_vaginal", 
                                    "Pl_CS" = "C-section_pl",
-                                   "Upl_CS" = "C-section_upl",
-                                   "No_data" = "No_data"))  
+                                   "Upl_CS" = "C-section_upl")) 
+table(Sample1$Birth_mode)
+# C-section_pl    C-section_upl        Instrumental_vaginal       Vaginal 
+# 1495            1143                 1082                       3771 
 
 Sample1 <- Sample1 %>% 
   select(-mode_of_birth)
 
 Sample1 <- Sample1 %>%
   mutate(Birth_mode = factor(Birth_mode,
-                                   levels = c("Vaginal", "Instrumental_vaginal", "C-section_pl", "C-section_upl", "No_data")))
+                                   levels = c("Vaginal", "Instrumental_vaginal", "C-section_pl", "C-section_upl")))
 # 3.4.4 Feeding type ---------------------------------------------------------
 table(Sample1$feeding_method_u3)
 # excl_bf   excl_ff   ff_plus partly_bf 
@@ -334,6 +336,7 @@ table(is.na(Sample1$feeding_method_u3)) # TRUE = 304
 # create new variable and rename the values (with recode)
 Sample1 <- Sample1 %>%
   mutate(Feeding_group = if_else(is.na(feeding_method_u3), "No_data", feeding_method_u3))
+table(is.na(Sample1$Feeding_group))  # 7491 
 
 Sample1 <- Sample1 %>%
   mutate(Feeding_group = recode(Feeding_group, 
@@ -342,6 +345,7 @@ Sample1 <- Sample1 %>%
                                 "ff_plus" = "Mixed_feeding_no_breastfed", 
                                 "excl_ff" = "Formula_only",
                                 "No_data" = "No_data"))
+table(Sample1$Feeding_group)
 
 Sample1 <- Sample1 %>% 
   select(- feeding_method_u3)
@@ -398,11 +402,6 @@ Labour_dis_nicu_no <- Move_newborn %>%
 # Dataset cleaned without cases with no transfer from the labour ward to neonatal unit
 Sample2 <- Sample2 %>% 
   filter(!is.na(admission_postnatalunit)) # 7207
-
-# attr: Object Attributes, Description: Get or set specific attributes of an object.: attr(x, which) <- value
-# Sample2 <- Sample2 %>% 
-#   mutate(LOS = LOS/60)
-# attr(Sample2$LOS, "units") <- "h"
 
 # Check ids
 ## child
@@ -644,39 +643,35 @@ Parity <- parity1 %>%
   mutate(Anzahl_vorausg_LebGeb = as.numeric(Anzahl_vorausg_LebGeb), # character in as numeric, to be able to replace NA
          Anzahl_vorausg_LebGeb = replace_na(Anzahl_vorausg_LebGeb, 0))
 
-# Parity <- parity1 %>% 
-#   mutate(RF_parity = if_else(Anzahl_vorausg_LebGeb == 0, "Primi", "Multi")) %>% 
-#   mutate(RF_parity = factor(RF_parity, levels = c("Primi", "Multi")))
-# 
-# # There are cases with NAs -> change to primi
-# Parity <- Parity %>% 
-#   mutate(RF_parity = if_else(is.na(RF_parity), "Primi", RF_parity)) 
+Parity <- Parity %>%
+  mutate(RF_parity = if_else(Anzahl_vorausg_LebGeb == 0, "Primi", "Multi")) %>%
+  mutate(RF_parity = factor(RF_parity, levels = c("Primi", "Multi")))
 
 # Merge with Samples 
 ## Whole sample
 Sample3 <- left_join(Sample3, Parity, by = c("patient_id_child", "case_id_child" = "case_id", "patient_id_mother", "case_id_mother")) %>% 
   rename(Co_Parity = Anzahl_vorausg_LebGeb) %>% 
   select(-Anzahl_vorausg_SS, -Anzahl_fehl_Geb, -Anzahl_Interruptio)
+table(Sample3$Co_Parity)  
+#    0    1    2    3    4    5    6    7 
+# 2801 2232  664  142   40    7    5    1
+table(Sample3$RF_parity)
+# Primi Multi 
+# 2801  3091
 
-# # As factor
-# Sample3 <- Sample3 %>%
-#   mutate(RF_parity = factor(RF_parity,
-#                             levels = c("Primi", "Multi")))
-# 
-# ## Group 1
-# Newborn_group1_c <- left_join(Newborn_group1_c, Parity, by = c("patient_id_child", "case_id_child" = "case_id", "patient_id_mother", "case_id_mother")) %>% 
-#   select(-Anzahl_vorausg_SS, -Anzahl_vorausg_LebGeb, -Anzahl_fehl_Geb, -Anzahl_Interruptio)
-# 
-# Newborn_group1_c <- Newborn_group1_c %>%
-#   mutate(RF_parity = factor(RF_parity,
-#                             levels = c("Primi", "Multi")))
-# 
-# # Group 2
-# Newborn_group2_c <- left_join(Newborn_group2_c, Parity, by = c("patient_id_child", "case_id_child" = "case_id", "patient_id_mother", "case_id_mother")) %>% 
-#   select(-Anzahl_vorausg_SS, -Anzahl_vorausg_LebGeb, -Anzahl_fehl_Geb, -Anzahl_Interruptio)
-# Newborn_group2_c <- Newborn_group2_c %>%
-#   mutate(RF_parity = factor(RF_parity,
-#                             levels = c("Primi", "Multi")))
+## Group 1
+Newborn_group1_c <- left_join(Newborn_group1_c, Parity, by = c("patient_id_child", "case_id_child" = "case_id", "patient_id_mother", "case_id_mother")) %>%
+  select(-Anzahl_vorausg_SS, -Anzahl_vorausg_LebGeb, -Anzahl_fehl_Geb, -Anzahl_Interruptio)
+Newborn_group1_c <- Newborn_group1_c %>%
+  mutate(RF_parity = factor(RF_parity,
+                            levels = c("Primi", "Multi")))
+
+# Group 2
+Newborn_group2_c <- left_join(Newborn_group2_c, Parity, by = c("patient_id_child", "case_id_child" = "case_id", "patient_id_mother", "case_id_mother")) %>%
+  select(-Anzahl_vorausg_SS, -Anzahl_vorausg_LebGeb, -Anzahl_fehl_Geb, -Anzahl_Interruptio)
+Newborn_group2_c <- Newborn_group2_c %>%
+  mutate(RF_parity = factor(RF_parity,
+                            levels = c("Primi", "Multi")))
 
 # 3.4.8.2 Maternal age ----------------------------------------------------
 Mother_data <- left_join(Sample3, Pat_info, by = c("patient_id_mother" = "patient_id", "case_id_mother" = "case_id"), relationship = "many-to-many") %>% 
@@ -692,9 +687,6 @@ Mother_data <- Mother_data %>%
 summary(Mother_data$Maternal_age)
 # Min. 1st Qu.  Median    Mean 3rd Qu.    Max. 
 # 14.55   30.49   33.78   33.54   36.91   52.37
-
-# Mother_data <- Mother_data %>% 
-#   filter(Maternal_age > 18) 
 
 # Merge together with samples
 ## Whole sample
@@ -833,6 +825,31 @@ source("~/Thesis/Code/01_03_02_Code_Newborn_Meona.R")
 
 # 3.5.4 Overview HHH  ---------------------------------------------------
 ## To have an overview if a child has none, one, two or all HHH diagnoses based on my categories
+# Whole sample
+Sample3 <- Sample3 %>%
+  rowwise() %>%  # to not sum all values in the whole column
+  mutate(hypoglyc_y = Hypoglycaemia_cat %in% c("Mild", "Moderate", "Severe"),
+         hyperbili_y = if_else(is.na(Hyperbilirubinaemia_cat), FALSE, Hyperbilirubinaemia_cat %in% c("Hyperbilirubinaemia_serum", "Hyperbilirubinaemia_tcb")),
+         hypotherm_y = if_else(is.na(Hypothermia_cat), FALSE, Hypothermia_cat %in% c("Mild", "Moderate_Severe")),
+         symptom_count = sum(c(hypoglyc_y, hyperbili_y, hypotherm_y), na.rm = TRUE),
+         HHH_diagnoses = case_when(
+           symptom_count == 0 ~ "None",
+           symptom_count == 1 & hypoglyc_y ~ "Hypoglyc_only",
+           symptom_count == 1 & hyperbili_y ~ "Hyperbili_only",
+           symptom_count == 1 & hypotherm_y ~ "Hypotherm_only",
+           symptom_count == 2 & hypoglyc_y & hyperbili_y ~ "Hypoglyc_Hyperbili",
+           symptom_count == 2 & hypoglyc_y & hypotherm_y ~ "Hypoglyc_Hypothermia",
+           symptom_count == 2 & hyperbili_y & hypotherm_y ~ "Hyperbili_Hypothermia",
+           symptom_count == 3 ~ "All_diagnoses",
+           TRUE ~ "Unknown")) %>% 
+  select(- hypoglyc_y, - hypotherm_y, - hyperbili_y, - symptom_count)
+table(Sample3$HHH_diagnoses)
+# All_diagnoses    Hyperbili_Hypothermia        Hyperbili_only      Hypoglyc_Hypothermia         Hypoglyc_only        Hypotherm_only        None 
+# 1                    12                       34                    78                         110                  1206                  4435
+round(prop.table(table(as.factor(Sample3$HHH_diagnoses))) * 100, 1)
+# All_diagnoses   Hyperbili_Hypothermia      Hyperbili_only       Hypoglyc_Hypothermia         Hypoglyc_only      Hypotherm_only        None 
+# 0.0              0.2                        0.6                 1.3                          1.9                 20.5                 75.5 
+
 # Group 1
 Newborn_group1_c <- Newborn_group1_c %>%
   rowwise() %>%  # to not sum all values in the whole column
@@ -908,23 +925,45 @@ Sample_final_all %>%
 #   <int>    <int>   <dbl>
 #1  5876       46   0.783
 
+# % for the HHH categories
+## Hypothermia
+(Hypothermia_nicu <- Sample_final_all_nicu %>%
+  ungroup() %>% 
+  count(Hypothermia_cat) %>%
+  mutate(percentage = round(n/sum(n)*100, 1)))
+
+# Hypoglycaemia
+(Hypoglycaemia_nicu <- Sample_final_all_nicu %>%
+  ungroup() %>% 
+  count(Hypoglycaemia_cat) %>%
+  mutate(percentage = round(n/sum(n)*100, 1)))
+
+# Hyperbilirubinaemia
+(Hyperbilirubinaemia_nicu <- Sample_final_all_nicu %>%
+    ungroup() %>% 
+  count(Hyperbilirubinaemia_cat) %>%
+  mutate(percentage = round(n/sum(n)*100, 1)))
+
+(HHH_combi_nicu <- Sample_final_all_nicu %>%
+  ungroup() %>% 
+  count(HHH_diagnoses) %>%
+  mutate(percentage = round(n/sum(n)*100, 1)))
+
 
 # 4.1.2 Preparation Logistic Regression -----------------------------------
-
+# COVARIATES
 ## Mode of delivery
-table(Sample_final_all$Birth_mode) # there are 53 cases with No_data (0.9%), for regression analysis to remove
-Sample_final_all_c <- Sample_final_all %>% 
-  filter(Birth_mode != "No_data") # 5823
+table(Sample_final_all$Birth_mode) 
 
 # Levels
-Sample_final_all_c <- Sample_final_all_c %>%
+Sample_final_all_c <- Sample_final_all %>%
   mutate(Birth_mode = factor(Birth_mode,
                              levels = c("Vaginal", "Instrumental_vaginal", "C-section_pl", "C-section_upl")))
 
 ## Feeding type
 table(Sample_final_all_c$Feeding_group) # there are 6 cases (0.1%) with no data, for regression analysis to remove
 Sample_final_all_c <- Sample_final_all_c %>% 
-  filter(Feeding_group != "No_data") # 5817
+  filter(Feeding_group != "No_data") # 5870
 
 # Levels 
 Sample_final_all_c <- Sample_final_all_c %>%
@@ -932,58 +971,106 @@ Sample_final_all_c <- Sample_final_all_c %>%
                                 levels = c("Fully_breastfed", "Partly_breastfed", "Mixed_feeding_no_breastfed", "Formula_only")))
 
 ## Country
-table(Sample_final_all_c$Country) # there are 13 (0.2%) unknown cases
-Sample_final_all_c <- Sample_final_all_c %>% 
-  filter(Country != "Unknown") # 5804
+table(Sample_final_all_c$Country) # there are 13 (0.2%) unknown cases -- drin behalten!
+# Sample_final_all_c <- Sample_final_all_c %>% 
+#   filter(Country != "Unknown") 
 
 # Levels
 Sample_final_all_c <- Sample_final_all_c %>%
   mutate(Country = factor(Country, 
-                          levels = c("Switzerland", "Europe", "Africa", "America", "Asia", "Oceania")))
+                          levels = c("Switzerland", "Europe", "Africa", "America", "Asia", "Oceania", "Unknown")))
 
 ## GA
 Sample_final_all_c <- Sample_final_all_c %>%
-  rename(Gest_age = gestational_age_total_days)
+  rename(Gest_age = gestational_age_total_days) # numeric
 
-## Hypothermia
-table(Sample_final_all_c$Hypothermia_cat)
+## Parity
+table(Sample_final_all_c$Co_Parity) # numeric
 
-# Levels
-Sample_final_all_c <- Sample_final_all_c %>%
-  mutate(Hypothermia_cat = factor(Hypothermia_cat,
-                                  levels = c("Norm", "Mild", "Moderate_Severe")))
+# EXPLANATORY VARIABLES
+# I want to carry out three bivariable regression analyses (dependent variable: admission_neo_n), whereby only the relevant 'No_measurement' cases are to be excluded in each case:
+# Model 1: admission_neo_n ~ Hypothermia_cat --> no exclusion of no_measurement cases 
+# Model 2: admission_neo_n ~ Hypoglycaemia_cat --> only exclude cases with Hypoglycaemia_cat = "No_measurement"
+# Model 3: admission_neo_n ~ Hyperbilirubinaemia_cat --> exclude only cases with Hyperbilirubinaemia_cat == "No_measurement"
+# + A data set without "No_measurement" in both variables for multivariable models.
+# + Create binary variables for HHH models
 
-# For bivariate modelling to analyse the associations HHH among each other
-Sample_final_all_c <- Sample_final_all_c %>% 
-  mutate(Hypothermia_bi = if_else(Hypothermia_cat == "Norm", 0, 1))
 
-## Hypoglycaemia
-table(Sample_final_all_c$Hypoglycaemia_cat) # No measurements to remove for regression analysis, n=3820
-Sample_final_all_c <- Sample_final_all_c %>% 
-  filter(Hypoglycaemia_cat != "No_measurement") # 1984
+## 1. Create the different data sets for examining the relationships between explanatory with admission to NICU (bivariable analysis)
+Sample_original <- Sample_final_all_c
 
-# Levels
-Sample_final_all_c <- Sample_final_all_c %>%
+Sample_original <- Sample_original %>%
+  mutate(
+    Hypothermia_cat = factor(Hypothermia_cat,
+                             levels = c("Norm", "Mild", "Moderate_Severe")),
+    Hypoglycaemia_cat = factor(Hypoglycaemia_cat, 
+                               levels = c("Normoglycaemic", "Mild", "Moderate", "Severe", "No_measurement")),
+    Hyperbilirubinaemia_cat = factor(Hyperbilirubinaemia_cat, 
+                                     levels = c("Physiological", "Hyperbilirubinaemia_tcb", "Hyperbilirubinaemia_serum", "No_measurement")))
+
+# Hypothermia - NICU --> no exclusions
+Sample_Hypotherm <- Sample_original 
+
+# Hypoglycaemia - NICU --> exclusions "No_measurement" in Hypoglycaemia_cat
+Sample_Hypoglyc <- Sample_original %>% 
+  filter(Hypoglycaemia_cat != "No_measurement") %>% 
   mutate(Hypoglycaemia_cat = factor(Hypoglycaemia_cat,
                                     levels = c("Normoglycaemic", "Mild", "Moderate", "Severe")))
 
-# For bivariate modelling to analyse the associations HHH among each other
-Sample_final_all_c <- Sample_final_all_c %>% 
-  mutate(Hypoglycaemia_bi = if_else(Hypoglycaemia_cat == "Normoglycaemic", 0, 1))
-
-## Hyperbilirubinaemia
-table(Sample_final_all_c$Hyperbilirubinaemia_cat) # No measurement to remove for regression analysis, n=155
-Sample_final_all_c <- Sample_final_all_c %>% 
-  filter(Hyperbilirubinaemia_cat != "No_measurement") # 1829
-
-# Levels
-Sample_final_all_c <- Sample_final_all_c %>%
+# Hyperbilirubinaemia - NICU --> exclusion "No_measurement" in Hyperbilirubinaemia_cat
+Sample_Hyperbili <- Sample_original %>% 
+  filter(Hyperbilirubinaemia_cat != "No_measurement") %>% 
   mutate(Hyperbilirubinaemia_cat = factor(Hyperbilirubinaemia_cat,
-                                          levels = c("Physiological", "Hyperbilirubinaemia_tcb", "Hyperbilirubinaemia_serum")))
+                                    levels = c("Physiological", "Hyperbilirubinaemia_tcb", "Hyperbilirubinaemia_serum")))
 
-# For bivariate modelling to analyse the associations HHH among each other
-Sample_final_all_c <- Sample_final_all_c %>% 
+# 2. Create data set for multivariable analysis
+Sample_no_missing <- Sample_original %>%
+  filter(Hypoglycaemia_cat != "No_measurement",
+         Hyperbilirubinaemia_cat != "No_measurement") %>%
+  mutate(Hypoglycaemia_cat = factor(Hypoglycaemia_cat,
+                               levels = c("Normoglycaemic", "Mild", "Moderate", "Severe")),
+         Hyperbilirubinaemia_cat = factor(Hyperbilirubinaemia_cat,
+                                     levels = c("Physiological", "Hyperbilirubinaemia_tcb", "Hyperbilirubinaemia_serum")))
+
+# 3. Create binary variables 
+Sample_original <- Sample_original%>%
+  mutate(Hypothermia_bi = if_else(Hypothermia_cat == "Norm", 0, 1),
+         Hypoglycaemia_bi = if_else(Hypoglycaemia_cat == "Normoglycaemic", 0, 1),
+         Hyperbilirubinaemia_bi = if_else(Hyperbilirubinaemia_cat == "Physiological", 0, 1))
+
+Sample_no_missing <- Sample_no_missing %>%
+  mutate(Hypothermia_bi = if_else(Hypothermia_cat == "Norm", 0, 1),
+         Hypoglycaemia_bi = if_else(Hypoglycaemia_cat == "Normoglycaemic", 0, 1),
+         Hyperbilirubinaemia_bi = if_else(Hyperbilirubinaemia_cat == "Physiological", 0, 1))
+
+Sample_Hyperbili <- Sample_Hyperbili %>%
   mutate(Hyperbilirubinaemia_bi = if_else(Hyperbilirubinaemia_cat == "Physiological", 0, 1))
+
+# Hypothermia_bi ~ Hypoglycaemia_cat
+Sample_HHH_mod1 <- Sample_original %>%
+  filter(Hypoglycaemia_cat != "No_measurement")
+
+# Hypoglycaemia_bi ~ Hypothermia_cat
+Sample_HHH_mod2 <- Sample_original
+
+# Hypothermia_bi ~ Hyperbilirubinaemia_cat
+Sample_HHH_mod3 <- Sample_original %>%
+  filter(Hyperbilirubinaemia_cat != "No_measurement")
+
+# Hypothermia_bi ~ Hyperbilirubinaemia_bi
+Sample_HHH_mod4 <- Sample_original
+
+# Hypoglycaemia_bi ~ Hyperbilirubinaemia_cat
+Sample_HHH_mod5 <- Sample_original %>%
+  filter(Hyperbilirubinaemia_cat != "No_measurement")
+
+# Hypoglycaemia_bi ~ Hyperbilirubinaemia_bi
+Sample_HHH_mod6 <- Sample_original
+
+# Hyperbilirubinaemia_bi ~ Hypoglycaemia_cat
+Sample_HHH_mod7 <- Sample_original %>%
+  filter(Hypoglycaemia_cat != "No_measurement")
+
 
 
 # 4.2 Group 1 (without RF) ------------------------------------------------
@@ -1006,26 +1093,26 @@ Group1_final %>%
 #  <int>   <int>   <dbl>
 #1  3939      2    0.0508
 
-Group1_final_nicu <- Group1_final_nicu %>%
-  rowwise() %>%  # to not sum all values in the whole column
-  mutate(hypoglyc_y = Hypoglycaemia_cat %in% c("Mild", "Moderate", "Severe"),
-         hyperbili_y = if_else(is.na(Hyperbilirubinaemia_cat), FALSE, Hyperbilirubinaemia_cat %in% c("Hyperbilirubinaemia_serum", "Hyperbilirubinaemia_tcb")),
-         hypotherm_y = if_else(is.na(Hypothermia_cat), FALSE, Hypothermia_cat %in% c("Mild", "Moderate_Severe")),
-         symptom_count = sum(c(hypoglyc_y, hyperbili_y, hypotherm_y), na.rm = TRUE),
-         HHH_diagnoses = case_when(
-           symptom_count == 0 ~ "None",
-           symptom_count == 1 & hypoglyc_y ~ "Hypoglyc_only",
-           symptom_count == 1 & hyperbili_y ~ "Hyperbili_only",
-           symptom_count == 1 & hypotherm_y ~ "Hypotherm_only",
-           symptom_count == 2 & hypoglyc_y & hyperbili_y ~ "Hypoglyc_Hyperbili",
-           symptom_count == 2 & hypoglyc_y & hypotherm_y ~ "Hypoglyc_Hypothermia",
-           symptom_count == 2 & hyperbili_y & hypotherm_y ~ "Hyperbili_Hypothermia",
-           symptom_count == 3 ~ "All_diagnoses",
-           TRUE ~ "Unknown")) %>% 
-  select(- hypoglyc_y, - hypotherm_y, - hyperbili_y, - symptom_count)
-table(Group1_final_nicu$HHH_diagnoses)
-# Hypotherm_only None 
-# 1              1 
+# Group1_final_nicu <- Group1_final_nicu %>%
+#   rowwise() %>%  # to not sum all values in the whole column
+#   mutate(hypoglyc_y = Hypoglycaemia_cat %in% c("Mild", "Moderate", "Severe"),
+#          hyperbili_y = if_else(is.na(Hyperbilirubinaemia_cat), FALSE, Hyperbilirubinaemia_cat %in% c("Hyperbilirubinaemia_serum", "Hyperbilirubinaemia_tcb")),
+#          hypotherm_y = if_else(is.na(Hypothermia_cat), FALSE, Hypothermia_cat %in% c("Mild", "Moderate_Severe")),
+#          symptom_count = sum(c(hypoglyc_y, hyperbili_y, hypotherm_y), na.rm = TRUE),
+#          HHH_diagnoses = case_when(
+#            symptom_count == 0 ~ "None",
+#            symptom_count == 1 & hypoglyc_y ~ "Hypoglyc_only",
+#            symptom_count == 1 & hyperbili_y ~ "Hyperbili_only",
+#            symptom_count == 1 & hypotherm_y ~ "Hypotherm_only",
+#            symptom_count == 2 & hypoglyc_y & hyperbili_y ~ "Hypoglyc_Hyperbili",
+#            symptom_count == 2 & hypoglyc_y & hypotherm_y ~ "Hypoglyc_Hypothermia",
+#            symptom_count == 2 & hyperbili_y & hypotherm_y ~ "Hyperbili_Hypothermia",
+#            symptom_count == 3 ~ "All_diagnoses",
+#            TRUE ~ "Unknown")) %>% 
+#   select(- hypoglyc_y, - hypotherm_y, - hyperbili_y, - symptom_count)
+# table(Group1_final_nicu$HHH_diagnoses)
+# # Hypotherm_only None 
+# # 1              1 
 
 
 # 4.3 Group 2 (with RF) ---------------------------------------------------
@@ -1085,6 +1172,7 @@ percent_under_24 <- round((n_under_24 / n_total) * 100, 1)
 percent_under_24 # 59.1
 
 rm(Newborn_group1_c, Newborn_group2_c)
+
 
 
 ## OLD
@@ -3089,73 +3177,90 @@ ft9
 # 1. Logistic regression --------------------------------------------------
 # 1.1 Bivariate regression HHH and NICU admission --------------------------------------------
 
+# 1. Logistic regression --------------------------------------------------
+# 1.1 Bivariable regression HHH and NICU admission --------------------------------------------
+
 # HYPOTHERMIA
-summary(glm(admission_neo_n ~ Hypothermia_cat, data = Sample_final_all_c, family = binomial))
-#                                   Estimate Std. Error z value Pr(>|z|)    
-# (Intercept)                     -4.8275     0.3175  -15.206 <2e-16 ***
-#   Hypothermia_catMild           -0.2287     0.7770  -0.294   0.7685    
-# Hypothermia_catModerate_Severe   0.9195     0.5521   1.665   0.0958 .
+summary(glm(admission_neo_n ~ Hypothermia_cat, data = Sample_Hypotherm, family = binomial))
+#                                 Estimate Std. Error z value Pr(>|z|)    
+# (Intercept)                     -5.2038     0.2006 -25.948  < 2e-16 ***
+# Hypothermia_catMild              0.0834     0.4913   0.170    0.865    
+# Hypothermia_catModerate_Severe   1.8273     0.3304   5.531 3.19e-08 ***
 
-mod_hypot <- glm(admission_neo_n ~ Hypothermia_cat, data = Sample_final_all_c, family = binomial)
+mod_hypot <- glm(admission_neo_n ~ Hypothermia_cat, data = Sample_Hypotherm, family = binomial)
 exp(cbind("Odds ratio" = coef(mod_hypot), confint.default(mod_hypot, level = 0.95)))
-#                                Odds ratio       2.5 %     97.5 %
-# (Intercept)                    0.008006405 0.004297358 0.01491673
-# Hypothermia_catMild            0.795541469 0.173484297 3.64808943
-# Hypothermia_catModerate_Severe 2.508032117 0.849944166 7.40075095
+#                                Odds ratio       2.5 %       97.5 %
+# (Intercept)                    0.005495713 0.003709511  0.008142007
+# Hypothermia_catMild            1.086977300 0.414945945  2.847406188
+# Hypothermia_catModerate_Severe 6.217312073 3.253609241 11.880642864
 
-# Interpretation: Newborns with moderate to severe hypothermia tended to have an increased chance of admission to the neonatal intensive care unit (OR = 2.51, 95% CI [0.85-7.40], p = 0.096) 
-# compared to normothermic newborns. In mild hypothermia, however, there was no statistically significant difference to the reference group (OR = 0.80, 95% CI [0.17-3.65], p = 0.769).
+# Interpretation: Newborns with moderate/severe hypothermia had a significantly increased likelihood of admission to the 
+# NICU (OR = 6.22, 95% CI [3.25–11.88], p < 0.001) compared to normothermic newborns. In newborns with mild hypothermia there 
+# was no statistically significant difference compared to normothermic newborns (OR = 1.09, 95% CI [0.41–2.85], p = 0.865).
 
 # HYPOGLYCAEMIA
-summary(glm(admission_neo_n ~ Hypoglycaemia_cat, data = Sample_final_all_c, family = binomial))
+summary(glm(admission_neo_n ~ Hypoglycaemia_cat, data = Sample_Hypoglyc, family = binomial))
 #                             Estimate Std. Error z value Pr(>|z|)    
-# (Intercept)                 -4.7670     0.2684 -17.761  < 2e-16 ***
-# Hypoglycaemia_catMild      -14.7990   981.7026  -0.015 0.987972    
-# Hypoglycaemia_catModerate  -14.7990  2874.1309  -0.005 0.995892    
-# Hypoglycaemia_catSevere      2.3999     0.6608   3.632 0.000281 ***
+# (Intercept)                 -4.6657     0.2437 -19.147   <2e-16 ***
+# Hypoglycaemia_catMild      -14.9004   969.6567  -0.015    0.988    
+# Hypoglycaemia_catModerate  -14.9004  2776.6742  -0.005    0.996    
+# Hypoglycaemia_catSevere      3.7212     0.3982   9.344   <2e-16 ***
 
-table(Sample_final_all_c$Hypoglycaemia_cat, Sample_final_all_c$admission_neo_n)
+table(Sample_Hypoglyc$Hypoglycaemia_cat, Sample_Hypoglyc$admission_neo_n)
 #                   0    1
-# Normoglycaemic 1646   14
-# Mild            120    0
-# Moderate         14    0
-# Severe           32    3
+# Normoglycaemic 1806   17
+# Mild            123    0
+# Moderate         15    0
+# Severe           36   14
 
-mod_hypoglyc <- glm(admission_neo_n ~ Hypoglycaemia_cat, data = Sample_final_all_c, family = binomial)
+mod_hypoglyc <- glm(admission_neo_n ~ Hypoglycaemia_cat, data = Sample_Hypoglyc, family = binomial)
 exp(cbind("Odds ratio" = coef(mod_hypoglyc), confint.default(mod_hypoglyc, level = 0.95)))
-#                             Odds ratio       2.5 %      97.5 %
-# (Intercept)               8.505468e-03 0.005026198  0.01439318
-# Hypoglycaemia_catMild     3.739954e-07 0.000000000         Inf
-# Hypoglycaemia_catModerate 3.739954e-07 0.000000000         Inf
-# Hypoglycaemia_catSevere   1.102232e+01 3.018721535 40.24603405
+#                           Odds ratio        2.5 %      97.5 %
+# (Intercept)               9.413068e-03  0.005838686  0.01517565
+# Hypoglycaemia_catMild     3.379350e-07  0.000000000         Inf
+# Hypoglycaemia_catModerate 3.379350e-07  0.000000000         Inf
+# Hypoglycaemia_catSevere   4.131373e+01 18.928846831 90.17051747
 
-# Interpretation: strong association between severe hypoglycaemia and NICU admissions (OR = 11.02, 95% CI [3.02-40.25], p < 0.001). Newborns with severe hypoglycaemia were therefore 
-# about 11 times more likely to require intensive care compared to normoglycaemic newborns. No reliable estimates could be determined for mild and moderate hypoglycaemia, 
-# s no NICU admissions were observed in these groups.
+# Interpretation: Newborns with severe hypoglycaemia had a significantly increased likelihood of admission to the NICU (OR = 41.31, 95% CI [18.93–90.17], p < 0.001)
+# compared to normoglycaemic newborns. No estimates could be determined for mild and moderate hypoglycaemia, as no NICU admissions were observed in these groups.
 
 # HYPERBILIRUBINAEMIA
-summary(glm(admission_neo_n ~ Hyperbilirubinaemia_cat, data = Sample_final_all_c, family = binomial))
-#                                                     Estimate Std. Error z value Pr(>|z|)    
-# (Intercept)                                       -5.0090     0.2896 -17.297  < 2e-16 ***
-# Hyperbilirubinaemia_catHyperbilirubinaemia_tcb     3.0631     0.8095   3.784 0.000154 ***
-# Hyperbilirubinaemia_catHyperbilirubinaemia_serum   6.1076     1.1905   5.130 2.89e-07 ***
+summary(glm(admission_neo_n ~ Hyperbilirubinaemia_cat, data = Sample_Hyperbili, family = binomial))
+#                                                   Estimate Std. Error z value Pr(>|z|)    
+# (Intercept)                                       -5.6206     0.2298 -24.456   <2e-16 ***
+# Hyperbilirubinaemia_catHyperbilirubinaemia_tcb     3.6057     0.5798   6.219    5e-10 ***
+# Hyperbilirubinaemia_catHyperbilirubinaemia_serum   5.7747     0.6020   9.593   <2e-16 ***
 
-table(Sample_final_all_c$Hyperbilirubinaemia_cat, Sample_final_all_c$admission_neo_n)
+table(Sample_Hyperbili$Hyperbilirubinaemia_cat, Sample_Hyperbili$admission_neo_n)
 #                              0    1
-# Physiological             1797   12
-# Hyperbilirubinaemia_tcb     14    2
-# Hyperbilirubinaemia_serum    1    3
+# Physiological             5245   19
+# Hyperbilirubinaemia_tcb     30    4
+# Hyperbilirubinaemia_serum    6    7
 
-mod_hyperbili <- glm(admission_neo_n ~ Hyperbilirubinaemia_cat, data = Sample_final_all_c, family = binomial)
+mod_hyperbili <- glm(admission_neo_n ~ Hyperbilirubinaemia_cat, data = Sample_Hyperbili, family = binomial)
 exp(cbind("Odds ratio" = coef(mod_hyperbili), confint.default(mod_hyperbili, level = 0.95)))
-#                                                   Odds ratio       2.5 %       97.5 %
-# (Intercept)                                      6.677797e-03  0.00378558 1.177969e-02
-# Hyperbilirubinaemia_catHyperbilirubinaemia_tcb   2.139286e+01  4.37744073 1.045484e+02
-# Hyperbilirubinaemia_catHyperbilirubinaemia_serum 4.492500e+02 43.56784712 4.632442e+03
+#                                                   Odds ratio        2.5 %       97.5 %
+# (Intercept)                                      3.622498e-03  0.002308755 5.683794e-03
+# Hyperbilirubinaemia_catHyperbilirubinaemia_tcb   3.680702e+01 11.814463286 1.146693e+02
+# Hyperbilirubinaemia_catHyperbilirubinaemia_serum 3.220614e+02 98.982214017 1.047901e+03
 
-# Interpretation: statistically significant association between hyperbilirubinaemia and NICU admissions. Newborns with elevated bilirubin levels on transcutaneous measurement 
-# had a significantly increased chance of NICU admission (OR = 21.39, 95% CI [4.38-104.55], p < 0.001) compared to newborns with physiological bilirubin levels. 
-# The association was even more significant in newborns with hyperbilirubinaemia diagnosed by serum measurement (OR = 449.25, 95% CI [43.57-4632.44], p < 0.001).
+# Interpretation: Those newborns with hyperbilirubinaemia detected by TcB had significantly higher odds of NICU admission (OR = 36.81, 95% CI [11.81–114.67], p < 0.001), 
+# compared to newborns with physiological bilirubin levels. The association was also significant in newborns with hyperbilirubinaemia diagnosed by serum 
+# measurement (OR = 322.06, 95% CI [98.98-1,047.90], p < 0.001).
+
+summary(glm(admission_neo_n ~ Hyperbilirubinaemia_bi, data = Sample_Hyperbili, family = binomial))
+# Coefficients:
+#                         Estimate Std. Error z value Pr(>|z|)    
+# (Intercept)             -5.6206     0.2298  -24.46   <2e-16 ***
+# Hyperbilirubinaemia_bi   4.4350     0.4141   10.71   <2e-16 ***
+mod_hyperbili2 <- glm(admission_neo_n ~ Hyperbilirubinaemia_bi, data = Sample_Hyperbili, family = binomial)
+exp(cbind("Odds ratio" = coef(mod_hyperbili2), confint.default(mod_hyperbili2, level = 0.95)))
+# Odds ratio                2.5 %       97.5 %
+# (Intercept)             0.003622498  0.002308755 5.683794e-03
+# Hyperbilirubinaemia_bi 84.349415183 37.460157543 1.899304e+02
+
+# Interpretation: Newborns with hyperbilirubinaemia had a significantly higher likelihood of admission to the NICU compared 
+# to those with physiological jaundice (OR = 84.35, 95% CI [37.46–189.93], p < 0.001).
 
 
 # 1.2 Bivariate regression with associations between HHH ------------------
