@@ -1107,6 +1107,61 @@ Sample_no_missing <- Sample_original %>%
          Hyperbilirubinaemia_cat = factor(Hyperbilirubinaemia_cat,
                                      levels = c("Physiological", "Hyperbilirubinaemia_tcb", "Hyperbilirubinaemia_serum")))
 
+# 6. Sample Multivariable -------------------------------------------------
+## Sample with no missing
+# NICU admission
+Sample_no_missing_nicu <- Sample_no_missing %>% 
+  filter(admission_neo_n %in% 1) # 19
+
+# % for the HHH categories in NICU admission affected newborns
+## Hypothermia
+(Hypothermia_nicu_nm <- Sample_no_missing_nicu %>%
+    ungroup() %>% 
+    count(Hypothermia_cat) %>%
+    mutate(percentage = round(n/sum(n)*100, 1)))
+
+# Hypoglycaemia
+(Hypoglycaemia_nicu_nm <- Sample_no_missing_nicu %>%
+    ungroup() %>% 
+    count(Hypoglycaemia_cat) %>%
+    mutate(percentage = round(n/sum(n)*100, 1)))
+
+# Hyperbilirubinaemia
+(Hyperbilirubinaemia_nicu_nm <- Sample_no_missing_nicu %>%
+    ungroup() %>% 
+    count(Hyperbilirubinaemia_cat) %>%
+    mutate(percentage = round(n/sum(n)*100, 1)))
+
+(HHH_combi_nicu_nm <- Sample_no_missing_nicu %>%
+    ungroup() %>% 
+    count(HHH_diagnoses) %>%
+    mutate(percentage = round(n/sum(n)*100, 1)))
+
+# Overview HHH
+Sample_no_missing <- Sample_no_missing %>%
+  rowwise() %>%  # to not sum all values in the whole column
+  mutate(hypoglyc_y = Hypoglycaemia_cat %in% c("Mild", "Moderate", "Severe"),
+         hyperbili_y = if_else(is.na(Hyperbilirubinaemia_cat), FALSE, Hyperbilirubinaemia_cat %in% c("Hyperbilirubinaemia_serum", "Hyperbilirubinaemia_tcb")),
+         hypotherm_y = if_else(is.na(Hypothermia_cat), FALSE, Hypothermia_cat %in% c("Mild", "Moderate_Severe")),
+         symptom_count = sum(c(hypoglyc_y, hyperbili_y, hypotherm_y), na.rm = TRUE),
+         HHH_diagnoses = case_when(
+           symptom_count == 0 ~ "None",
+           symptom_count == 1 & hypoglyc_y ~ "Hypoglyc_only",
+           symptom_count == 1 & hyperbili_y ~ "Hyperbili_only",
+           symptom_count == 1 & hypotherm_y ~ "Hypotherm_only",
+           symptom_count == 2 & hypoglyc_y & hyperbili_y ~ "Hypoglyc_Hyperbili",
+           symptom_count == 2 & hypoglyc_y & hypotherm_y ~ "Hypoglyc_Hypothermia",
+           symptom_count == 2 & hyperbili_y & hypotherm_y ~ "Hyperbili_Hypothermia",
+           symptom_count == 3 ~ "All_diagnoses",
+           TRUE ~ "Unknown")) %>% 
+  select(- hypoglyc_y, - hypotherm_y, - hyperbili_y, - symptom_count)
+table(Sample_no_missing$HHH_diagnoses)
+# All_diagnoses Hyperbili_Hypothermia        Hyperbili_only  Hypoglyc_Hypothermia       Hypoglyc_only       Hypotherm_only      None 
+# 1                    10                     9                    68                   104                 503                 1160
+round(prop.table(table(as.factor(Sample_no_missing$HHH_diagnoses))) * 100, 1)
+# All_diagnoses Hyperbili_Hypothermia        Hyperbili_only  Hypoglyc_Hypothermia         Hypoglyc_only        Hypotherm_only       None 
+# 0.1                   0.5                   0.5                   3.7                   5.6                  27.1                 62.5 
+
 
 # 4.2 Group 1 (without RF) ------------------------------------------------
 # To change LOS from mins to h: attr: Object Attributes, Description: Get or set specific attributes of an object.: attr(x, which) <- value
@@ -2881,44 +2936,26 @@ Lookup_bili, Newborn_bili_status, Photo_Nice_summary, Photo_USB, Photo_USB_comb)
 
 
 # Descriptive analysis ----------------------------------------------------
+# Sample: Total sample
+# Numerical
 Summary1 <- Sample_final_all %>%
   ungroup() %>% 
   summarise(
-    min_ga = min(Weeks_LPM, na.rm = TRUE), # gestational age
-    max_ga = max(Weeks_LPM, na.rm = TRUE),
-    mean_ga = mean(Weeks_LPM, na.rm = TRUE),
-    sd_ga = sd(Weeks_LPM, na.rm = TRUE),
-    median_ga = median(Weeks_LPM, na.rm = TRUE),
-    iqr_ga = IQR(Weeks_LPM, na.rm = TRUE),
-    min_weight = min(Birth_weight_g, na.rm = TRUE), # birth weight
-    max_weight = max(Birth_weight_g, na.rm = TRUE),
-    mean_weight = mean(Birth_weight_g, na.rm = TRUE),
+    mean_ga = mean(gestational_age_total_days, na.rm = TRUE), # GA
+    sd_ga = sd(gestational_age_total_days, na.rm = TRUE),
+    mean_weight = mean(Birth_weight_g, na.rm = TRUE), # Birth weight
     sd_weight = sd(Birth_weight_g, na.rm = TRUE),
-    median_weight = median(Birth_weight_g, na.rm = TRUE),
-    iqr_weight = IQR(Birth_weight_g, na.rm = TRUE),
-    min_los = min(LOS, na.rm = TRUE), # LOS
-    max_los = max(LOS, na.rm = TRUE),
-    mean_los = mean(LOS, na.rm = TRUE),
+    mean_los = mean(LOS, na.rm = TRUE), # LOS
     sd_los = sd(LOS, na.rm = TRUE),
-    median_los = median(LOS, na.rm = TRUE),
-    iqr_los = IQR(LOS, na.rm = TRUE),
-    min_mat_age = min(RF_Maternal_age, na.rm = TRUE), # mother age
-    max_mat_age = max(RF_Maternal_age, na.rm = TRUE),
-    mean_mat_age = mean(RF_Maternal_age, na.rm = TRUE),
-    sd_mat_age = sd(RF_Maternal_age, na.rm = TRUE),
-    median_mat_age = median(RF_Maternal_age, na.rm = TRUE),
-    iqr_mat_age = IQR(RF_Maternal_age, na.rm = TRUE),
+    mean_mat_age = mean(Maternal_age, na.rm = TRUE), # maternal age
+    sd_mat_age = sd(Maternal_age, na.rm = TRUE),
     Nicu_count = sum(admission_neo_n == 1), # NICU
     Nicu_percent = (sum(admission_neo_n == 1) / n()) * 100)
 
 Summary1_table <- tibble(
-  Variable = c("Gestational age (weeks)", "Birth weight (g)", "LOS (hours)", "Maternal age (years)"),
-  Min = round(c(Summary1$min_ga, Summary1$min_weight, Summary1$min_los, Summary1$min_mat_age), 1),
-  Max = round(c(Summary1$max_ga, Summary1$max_weight, Summary1$max_los, Summary1$max_mat_age), 1),
+  Variable = c("Gestational age (days)", "Birth weight (g)", "LOS (hours)", "Maternal age (years)"),
   Mean = round(c(Summary1$mean_ga, Summary1$mean_weight, Summary1$mean_los, Summary1$mean_mat_age), 1),
-  SD = round(c(Summary1$sd_ga, Summary1$sd_weight, Summary1$sd_los, Summary1$sd_mat_age), 1),
-  Median = round(c(Summary1$median_ga, Summary1$median_weight, Summary1$median_los, Summary1$median_mat_age), 1),
-  IQR = round(c(Summary1$iqr_ga, Summary1$iqr_weight, Summary1$iqr_los, Summary1$iqr_mat_age), 1))
+  SD = round(c(Summary1$sd_ga, Summary1$sd_weight, Summary1$sd_los, Summary1$sd_mat_age), 1))
 
 n_total <- nrow(Sample_final_all)
 Summary1_table <- Summary1_table %>% 
@@ -2932,10 +2969,10 @@ ft
 # Categorical (Mode of delivery, parity, Feeding type, Country, HHH)
 Categorical_summary_table2 <- bind_rows(
   Sample_final_all %>%
-    count(Birth_mode_group, name = "n") %>%
+    count(Birth_mode, name = "n") %>%
     ungroup() %>%
     mutate(Variable = "Birth Mode", Percent = round(n / sum(n) * 100, 1)) %>%
-    rename(Category = Birth_mode_group),
+    rename(Category = Birth_mode),
   
   Sample_final_all %>%
     count(RF_parity, name = "n") %>%
@@ -2950,10 +2987,10 @@ Categorical_summary_table2 <- bind_rows(
     rename(Category = Feeding_group),
   
   Sample_final_all %>%
-    count(Country, name = "n") %>%
+    count(Country_2, name = "n") %>%
     ungroup() %>%
     mutate(Variable = "Country", Percent = round(n / sum(n) * 100, 1)) %>%
-    rename(Category = Country),
+    rename(Category = Country_2),
 
   Sample_final_all %>%
     count(Hypothermia_cat, name = "n") %>%
@@ -2993,41 +3030,21 @@ ft3
 Summary2 <- Group1_final %>%
   ungroup() %>% 
   summarise(
-    min_ga = min(Weeks_LPM, na.rm = TRUE), # gestational age
-    max_ga = max(Weeks_LPM, na.rm = TRUE),
-    mean_ga = mean(Weeks_LPM, na.rm = TRUE),
-    sd_ga = sd(Weeks_LPM, na.rm = TRUE),
-    median_ga = median(Weeks_LPM, na.rm = TRUE),
-    iqr_ga = IQR(Weeks_LPM, na.rm = TRUE),
-    min_weight = min(Birth_weight_g, na.rm = TRUE), # birth weight
-    max_weight = max(Birth_weight_g, na.rm = TRUE),
-    mean_weight = mean(Birth_weight_g, na.rm = TRUE),
+    mean_ga = mean(gestational_age_total_days, na.rm = TRUE), # GA
+    sd_ga = sd(gestational_age_total_days, na.rm = TRUE),
+    mean_weight = mean(Birth_weight_g, na.rm = TRUE), # Birth weight
     sd_weight = sd(Birth_weight_g, na.rm = TRUE),
-    median_weight = median(Birth_weight_g, na.rm = TRUE),
-    iqr_weight = IQR(Birth_weight_g, na.rm = TRUE),
-    min_los = min(LOS, na.rm = TRUE), # LOS
-    max_los = max(LOS, na.rm = TRUE),
-    mean_los = mean(LOS, na.rm = TRUE),
+    mean_los = mean(LOS, na.rm = TRUE), # LOS
     sd_los = sd(LOS, na.rm = TRUE),
-    median_los = median(LOS, na.rm = TRUE),
-    iqr_los = IQR(LOS, na.rm = TRUE),
-    min_mat_age = min(RF_Maternal_age, na.rm = TRUE), # mother age
-    max_mat_age = max(RF_Maternal_age, na.rm = TRUE),
-    mean_mat_age = mean(RF_Maternal_age, na.rm = TRUE),
-    sd_mat_age = sd(RF_Maternal_age, na.rm = TRUE),
-    median_mat_age = median(RF_Maternal_age, na.rm = TRUE),
-    iqr_mat_age = IQR(RF_Maternal_age, na.rm = TRUE),
+    mean_mat_age = mean(Maternal_age, na.rm = TRUE), # Mother's age
+    sd_mat_age = sd(Maternal_age, na.rm = TRUE),
     Nicu_count = sum(admission_neo_n == 1), # NICU
     Nicu_percent = (sum(admission_neo_n == 1) / n()) * 100)
 
 Summary2_table <- tibble(
-  Variable = c("Gestational age (weeks)", "Birth weight (g)", "LOS (hours)", "Maternal age (years)"),
-  Min = round(c(Summary2$min_ga, Summary2$min_weight, Summary2$min_los, Summary2$min_mat_age), 1),
-  Max = round(c(Summary2$max_ga, Summary2$max_weight, Summary2$max_los, Summary2$max_mat_age), 1),
+  Variable = c("Gestational age (days)", "Birth weight (g)", "LOS (hours)", "Maternal age (years)"),
   Mean = round(c(Summary2$mean_ga, Summary2$mean_weight, Summary2$mean_los, Summary2$mean_mat_age), 1),
-  SD = round(c(Summary2$sd_ga, Summary2$sd_weight, Summary2$sd_los, Summary2$sd_mat_age), 1),
-  Median = round(c(Summary2$median_ga, Summary2$median_weight, Summary2$median_los, Summary2$median_mat_age), 1),
-  IQR = round(c(Summary2$iqr_ga, Summary2$iqr_weight, Summary2$iqr_los, Summary2$iqr_mat_age), 1))
+  SD = round(c(Summary2$sd_ga, Summary2$sd_weight, Summary2$sd_los, Summary2$sd_mat_age), 1))
 
 n_total <- nrow(Group1_final)
 Summary2_table <- Summary2_table %>% 
@@ -3041,10 +3058,10 @@ ft4
 # Categorical (Mode of delivery, parity, Feeding type, Country, HHH)
 Categorical_summary2_table2 <- bind_rows(
   Group1_final %>%
-    count(Birth_mode_group, name = "n") %>%
+    count(Birth_mode, name = "n") %>%
     ungroup() %>%
     mutate(Variable = "Birth Mode", Percent = round(n / sum(n) * 100, 1)) %>%
-    rename(Category = Birth_mode_group),
+    rename(Category = Birth_mode),
   
   Group1_final %>%
     count(RF_parity, name = "n") %>%
@@ -3059,10 +3076,10 @@ Categorical_summary2_table2 <- bind_rows(
     rename(Category = Feeding_group),
   
   Group1_final %>%
-    count(Country, name = "n") %>%
+    count(Country_2, name = "n") %>%
     ungroup() %>%
     mutate(Variable = "Country", Percent = round(n / sum(n) * 100, 1)) %>%
-    rename(Category = Country),
+    rename(Category = Country_2),
 
   Group1_final %>%
     count(Hypothermia_cat, name = "n") %>%
@@ -3103,41 +3120,21 @@ ft6
 Summary3 <- Group2_final %>%
   ungroup() %>% 
   summarise(
-    min_ga = min(Weeks_LPM, na.rm = TRUE), # gestational age
-    max_ga = max(Weeks_LPM, na.rm = TRUE),
-    mean_ga = mean(Weeks_LPM, na.rm = TRUE),
-    sd_ga = sd(Weeks_LPM, na.rm = TRUE),
-    median_ga = median(Weeks_LPM, na.rm = TRUE),
-    iqr_ga = IQR(Weeks_LPM, na.rm = TRUE),
-    min_weight = min(Birth_weight_g, na.rm = TRUE), # birth weight
-    max_weight = max(Birth_weight_g, na.rm = TRUE),
-    mean_weight = mean(Birth_weight_g, na.rm = TRUE),
+    mean_ga = mean(gestational_age_total_days, na.rm = TRUE), # GA
+    sd_ga = sd(gestational_age_total_days, na.rm = TRUE), 
+    mean_weight = mean(Birth_weight_g, na.rm = TRUE), # Birth weight
     sd_weight = sd(Birth_weight_g, na.rm = TRUE),
-    median_weight = median(Birth_weight_g, na.rm = TRUE),
-    iqr_weight = IQR(Birth_weight_g, na.rm = TRUE),
-    min_los = min(LOS, na.rm = TRUE), # LOS
-    max_los = max(LOS, na.rm = TRUE),
-    mean_los = mean(LOS, na.rm = TRUE),
+    mean_los = mean(LOS, na.rm = TRUE), # LOS
     sd_los = sd(LOS, na.rm = TRUE),
-    median_los = median(LOS, na.rm = TRUE),
-    iqr_los = IQR(LOS, na.rm = TRUE),
-    min_mat_age = min(RF_Maternal_age, na.rm = TRUE), # mother age
-    max_mat_age = max(RF_Maternal_age, na.rm = TRUE),
-    mean_mat_age = mean(RF_Maternal_age, na.rm = TRUE),
-    sd_mat_age = sd(RF_Maternal_age, na.rm = TRUE),
-    median_mat_age = median(RF_Maternal_age, na.rm = TRUE),
-    iqr_mat_age = IQR(RF_Maternal_age, na.rm = TRUE),
+    mean_mat_age = mean(Maternal_age, na.rm = TRUE), # Mother's age
+    sd_mat_age = sd(Maternal_age, na.rm = TRUE),
     Nicu_count = sum(admission_neo_n == 1), # NICU
     Nicu_percent = (sum(admission_neo_n == 1) / n()) * 100)
 
 Summary3_table <- tibble(
-  Variable = c("Gestational age (weeks)", "Birth weight (g)", "LOS (hours)", "Maternal age (years)"),
-  Min = round(c(Summary3$min_ga, Summary3$min_weight, Summary3$min_los, Summary3$min_mat_age), 1),
-  Max = round(c(Summary3$max_ga, Summary3$max_weight, Summary3$max_los, Summary3$max_mat_age), 1),
+  Variable = c("Gestational age (days)", "Birth weight (g)", "LOS (hours)", "Maternal age (years)"),
   Mean = round(c(Summary3$mean_ga, Summary3$mean_weight, Summary3$mean_los, Summary3$mean_mat_age), 1),
-  SD = round(c(Summary3$sd_ga, Summary3$sd_weight, Summary3$sd_los, Summary3$sd_mat_age), 1),
-  Median = round(c(Summary3$median_ga, Summary3$median_weight, Summary3$median_los, Summary3$median_mat_age), 1),
-  IQR = round(c(Summary3$iqr_ga, Summary3$iqr_weight, Summary3$iqr_los, Summary3$iqr_mat_age), 1))
+  SD = round(c(Summary3$sd_ga, Summary3$sd_weight, Summary3$sd_los, Summary3$sd_mat_age), 1))
 
 n_total <- nrow(Group2_final)
 Summary3_table <- Summary3_table %>% 
@@ -3151,10 +3148,10 @@ ft7
 # Categorical (Mode of delivery, parity, Feeding type, Country, HHH)
 Categorical_summary3_table2 <- bind_rows(
   Group2_final %>%
-    count(Birth_mode_group, name = "n") %>%
+    count(Birth_mode, name = "n") %>%
     ungroup() %>%
     mutate(Variable = "Birth Mode", Percent = round(n / sum(n) * 100, 1)) %>%
-    rename(Category = Birth_mode_group),
+    rename(Category = Birth_mode),
   
   Group2_final %>%
     count(RF_parity, name = "n") %>%
@@ -3169,10 +3166,10 @@ Categorical_summary3_table2 <- bind_rows(
     rename(Category = Feeding_group),
   
   Group2_final %>%
-    count(Country, name = "n") %>%
+    count(Country_2, name = "n") %>%
     ungroup() %>%
     mutate(Variable = "Country", Percent = round(n / sum(n) * 100, 1)) %>%
-    rename(Category = Country),
+    rename(Category = Country_2),
 
   Group2_final %>%
     count(Hypothermia_cat, name = "n") %>%
@@ -3207,6 +3204,371 @@ ft9 <- flextable(Table_nicu_g2)
 ft9 <- autofit(ft9)
 ft9
 
+# Newborn GROUP 2 - NICU ADMISSION (n = 44)
+# Numerical
+Summary4 <- Group2_final_nicu %>%
+  ungroup() %>% 
+  summarise(
+    min_ga = min(Weeks_LPM, na.rm = TRUE), # gestational age
+    max_ga = max(Weeks_LPM, na.rm = TRUE),
+    mean_ga = mean(Weeks_LPM, na.rm = TRUE),
+    sd_ga = sd(Weeks_LPM, na.rm = TRUE),
+    median_ga = median(Weeks_LPM, na.rm = TRUE),
+    iqr_ga = IQR(Weeks_LPM, na.rm = TRUE),
+    min_weight = min(Birth_weight_g, na.rm = TRUE), # birth weight
+    max_weight = max(Birth_weight_g, na.rm = TRUE),
+    mean_weight = mean(Birth_weight_g, na.rm = TRUE),
+    sd_weight = sd(Birth_weight_g, na.rm = TRUE),
+    median_weight = median(Birth_weight_g, na.rm = TRUE),
+    iqr_weight = IQR(Birth_weight_g, na.rm = TRUE),
+    min_los = min(LOS, na.rm = TRUE), # LOS
+    max_los = max(LOS, na.rm = TRUE),
+    mean_los = mean(LOS, na.rm = TRUE),
+    sd_los = sd(LOS, na.rm = TRUE),
+    median_los = median(LOS, na.rm = TRUE),
+    iqr_los = IQR(LOS, na.rm = TRUE),
+    min_mat_age = min(Maternal_age, na.rm = TRUE), # mother age
+    max_mat_age = max(Maternal_age, na.rm = TRUE),
+    mean_mat_age = mean(Maternal_age, na.rm = TRUE),
+    sd_mat_age = sd(Maternal_age, na.rm = TRUE),
+    median_mat_age = median(Maternal_age, na.rm = TRUE),
+    iqr_mat_age = IQR(Maternal_age, na.rm = TRUE))
+
+Summary4_table <- tibble(
+  Variable = c("Gestational age (weeks)", "Birth weight (g)", "LOS (hours)", "Maternal age (years)"),
+  Min = round(c(Summary4$min_ga, Summary4$min_weight, Summary4$min_los, Summary4$min_mat_age), 1),
+  Max = round(c(Summary4$max_ga, Summary4$max_weight, Summary4$max_los, Summary4$max_mat_age), 1),
+  Mean = round(c(Summary4$mean_ga, Summary4$mean_weight, Summary4$mean_los, Summary4$mean_mat_age), 1),
+  SD = round(c(Summary4$sd_ga, Summary4$sd_weight, Summary4$sd_los, Summary4$sd_mat_age), 1),
+  Median = round(c(Summary4$median_ga, Summary4$median_weight, Summary4$median_los, Summary4$median_mat_age), 1),
+  IQR = round(c(Summary4$iqr_ga, Summary4$iqr_weight, Summary4$iqr_los, Summary4$iqr_mat_age), 1))
+
+n_total <- nrow(Group2_final_nicu)
+Summary4_table <- Summary4_table %>% 
+  mutate(n = n_total)
+
+Summary4_table
+ft10 <- flextable(Summary4_table)
+ft10 <- autofit(ft10)
+ft10
+
+# Categorical (Mode of delivery, parity, Feeding type, Country, HHH)
+Categorical_summary4_table2 <- bind_rows(
+  Group2_final_nicu %>%
+    count(Birth_mode, name = "n") %>%
+    ungroup() %>%
+    mutate(Variable = "Birth Mode", Percent = round(n / sum(n) * 100, 1)) %>%
+    rename(Category = Birth_mode),
+  
+  Group2_final_nicu %>%
+    count(RF_parity, name = "n") %>%
+    ungroup() %>%
+    mutate(Variable = "Parity", Percent = round(n / sum(n) * 100, 1)) %>%
+    rename(Category = RF_parity),
+  
+  Group2_final_nicu %>%
+    count(Feeding_group, name = "n") %>%
+    ungroup() %>%
+    mutate(Variable = "Feeding Type", Percent = round(n / sum(n) * 100, 1)) %>%
+    rename(Category = Feeding_group),
+  
+  Group2_final_nicu %>%
+    count(Country, name = "n") %>%
+    ungroup() %>%
+    mutate(Variable = "Country", Percent = round(n / sum(n) * 100, 1)) %>%
+    rename(Category = Country),
+
+  Group2_final_nicu %>%
+    count(Hypothermia_cat, name = "n") %>%
+    ungroup() %>%
+    mutate(Variable = "Hypothermia", Percent = round(n / sum(n) * 100, 1)) %>%
+    rename(Category = Hypothermia_cat),
+
+  Group2_final_nicu %>%
+    count(Hypoglycaemia_cat, name = "n") %>%
+    ungroup() %>%
+    mutate(Variable = "Hypoglycaemia", Percent = round(n / sum(n) * 100, 1)) %>%
+    rename(Category = Hypoglycaemia_cat),
+
+  Group2_final_nicu %>%
+    count(Hyperbilirubinaemia_cat, name = "n") %>%
+    ungroup() %>%
+    mutate(Variable = "Hyperbilirubinaemia", Percent = round(n / sum(n) * 100, 1)) %>%
+    rename(Category = Hyperbilirubinaemia_cat)) %>%
+  select(Variable, Category, n, Percent)
+
+Categorical_summary4_table2
+ft11 <- flextable(Categorical_summary4_table2)
+ft11 <- autofit(ft11)
+ft11
+
+
+# Newborn GROUP 1 - NICU ADMISSION (n = 2)
+# Numerical
+Summary5 <- Group1_final_nicu %>%
+  ungroup() %>% 
+  summarise(
+    min_ga = min(Weeks_LPM, na.rm = TRUE), # gestational age
+    max_ga = max(Weeks_LPM, na.rm = TRUE),
+    mean_ga = mean(Weeks_LPM, na.rm = TRUE),
+    sd_ga = sd(Weeks_LPM, na.rm = TRUE),
+    median_ga = median(Weeks_LPM, na.rm = TRUE),
+    iqr_ga = IQR(Weeks_LPM, na.rm = TRUE),
+    min_weight = min(Birth_weight_g, na.rm = TRUE), # birth weight
+    max_weight = max(Birth_weight_g, na.rm = TRUE),
+    mean_weight = mean(Birth_weight_g, na.rm = TRUE),
+    sd_weight = sd(Birth_weight_g, na.rm = TRUE),
+    median_weight = median(Birth_weight_g, na.rm = TRUE),
+    iqr_weight = IQR(Birth_weight_g, na.rm = TRUE),
+    min_los = min(LOS, na.rm = TRUE), # LOS
+    max_los = max(LOS, na.rm = TRUE),
+    mean_los = mean(LOS, na.rm = TRUE),
+    sd_los = sd(LOS, na.rm = TRUE),
+    median_los = median(LOS, na.rm = TRUE),
+    iqr_los = IQR(LOS, na.rm = TRUE),
+    min_mat_age = min(Maternal_age, na.rm = TRUE), # mother age
+    max_mat_age = max(Maternal_age, na.rm = TRUE),
+    mean_mat_age = mean(Maternal_age, na.rm = TRUE),
+    sd_mat_age = sd(Maternal_age, na.rm = TRUE),
+    median_mat_age = median(Maternal_age, na.rm = TRUE),
+    iqr_mat_age = IQR(Maternal_age, na.rm = TRUE))
+
+Summary5_table <- tibble(
+  Variable = c("Gestational age (weeks)", "Birth weight (g)", "LOS (hours)", "Maternal age (years)"),
+  Min = round(c(Summary5$min_ga, Summary5$min_weight, Summary5$min_los, Summary5$min_mat_age), 1),
+  Max = round(c(Summary5$max_ga, Summary5$max_weight, Summary5$max_los, Summary5$max_mat_age), 1),
+  Mean = round(c(Summary5$mean_ga, Summary5$mean_weight, Summary5$mean_los, Summary5$mean_mat_age), 1),
+  SD = round(c(Summary5$sd_ga, Summary5$sd_weight, Summary5$sd_los, Summary5$sd_mat_age), 1),
+  Median = round(c(Summary5$median_ga, Summary5$median_weight, Summary5$median_los, Summary5$median_mat_age), 1),
+  IQR = round(c(Summary5$iqr_ga, Summary5$iqr_weight, Summary5$iqr_los, Summary5$iqr_mat_age), 1))
+
+n_total <- nrow(Group1_final_nicu)
+Summary5_table <- Summary5_table %>% 
+  mutate(n = n_total)
+
+Summary5_table
+ft12 <- flextable(Summary5_table)
+ft12 <- autofit(ft12)
+ft12
+
+# Categorical (Mode of delivery, parity, Feeding type, Country, HHH)
+Categorical_summary5_table2 <- bind_rows(
+  Group1_final_nicu %>%
+    count(Birth_mode, name = "n") %>%
+    ungroup() %>%
+    mutate(Variable = "Birth Mode", Percent = round(n / sum(n) * 100, 1)) %>%
+    rename(Category = Birth_mode),
+  
+  Group1_final_nicu %>%
+    count(RF_parity, name = "n") %>%
+    ungroup() %>%
+    mutate(Variable = "Parity", Percent = round(n / sum(n) * 100, 1)) %>%
+    rename(Category = RF_parity),
+  
+  Group1_final_nicu %>%
+    count(Feeding_group, name = "n") %>%
+    ungroup() %>%
+    mutate(Variable = "Feeding Type", Percent = round(n / sum(n) * 100, 1)) %>%
+    rename(Category = Feeding_group),
+  
+  Group1_final_nicu %>%
+    count(Country, name = "n") %>%
+    ungroup() %>%
+    mutate(Variable = "Country", Percent = round(n / sum(n) * 100, 1)) %>%
+    rename(Category = Country),
+
+  Group1_final_nicu %>%
+    count(Hypothermia_cat, name = "n") %>%
+    ungroup() %>%
+    mutate(Variable = "Hypothermia", Percent = round(n / sum(n) * 100, 1)) %>%
+    rename(Category = Hypothermia_cat),
+
+  Group1_final_nicu %>%
+    count(Hypoglycaemia_cat, name = "n") %>%
+    ungroup() %>%
+    mutate(Variable = "Hypoglycaemia", Percent = round(n / sum(n) * 100, 1)) %>%
+    rename(Category = Hypoglycaemia_cat),
+
+  Group1_final_nicu %>%
+    count(Hyperbilirubinaemia_cat, name = "n") %>%
+    ungroup() %>%
+    mutate(Variable = "Hyperbilirubinaemia", Percent = round(n / sum(n) * 100, 1)) %>%
+    rename(Category = Hyperbilirubinaemia_cat)) %>%
+  select(Variable, Category, n, Percent)
+
+Categorical_summary5_table2
+ft13 <- flextable(Categorical_summary5_table2)
+ft13 <- autofit(ft13)
+ft13
+
+# Newborn Total sample - NICU ADMISSION (n = 46)
+# Numerical
+Summary6 <- Sample_final_all_nicu %>%
+  ungroup() %>% 
+  summarise(
+    mean_ga = mean(gestational_age_total_days, na.rm = TRUE), # GA
+    sd_ga = sd(gestational_age_total_days, na.rm = TRUE),
+    mean_weight = mean(Birth_weight_g, na.rm = TRUE), # Birth weight
+    sd_weight = sd(Birth_weight_g, na.rm = TRUE),
+    mean_los = mean(LOS, na.rm = TRUE), # LOS
+    sd_los = sd(LOS, na.rm = TRUE),
+    mean_mat_age = mean(Maternal_age, na.rm = TRUE), # maternal age
+    sd_mat_age = sd(Maternal_age, na.rm = TRUE),
+    Nicu_count = sum(admission_neo_n == 1), # NICU
+    Nicu_percent = (sum(admission_neo_n == 1) / n()) * 100)
+
+Summary6_table <- tibble(
+  Variable = c("Gestational age (days)", "Birth weight (g)", "LOS (hours)", "Maternal age (years)"),
+  Mean = round(c(Summary6$mean_ga, Summary6$mean_weight, Summary6$mean_los, Summary6$mean_mat_age), 1),
+  SD = round(c(Summary6$sd_ga, Summary6$sd_weight, Summary6$sd_los, Summary6$sd_mat_age), 1))
+
+n_total <- nrow(Sample_final_all_nicu)
+Summary6_table <- Summary6_table %>% 
+  mutate(n = n_total)
+
+Summary6_table
+ft14 <- flextable(Summary6_table)
+ft14 <- autofit(ft14)
+ft14
+
+# Categorical (Mode of delivery, parity, Feeding type, Country, HHH)
+Categorical6_summary_table2 <- bind_rows(
+  Sample_final_all_nicu %>%
+    count(Birth_mode, name = "n") %>%
+    ungroup() %>%
+    mutate(Variable = "Birth Mode", Percent = round(n / sum(n) * 100, 1)) %>%
+    rename(Category = Birth_mode),
+  
+  Sample_final_all_nicu %>%
+    count(RF_parity, name = "n") %>%
+    ungroup() %>%
+    mutate(Variable = "Parity", Percent = round(n / sum(n) * 100, 1)) %>%
+    rename(Category = RF_parity),
+  
+  Sample_final_all_nicu %>%
+    count(Feeding_group, name = "n") %>%
+    ungroup() %>%
+    mutate(Variable = "Feeding Type", Percent = round(n / sum(n) * 100, 1)) %>%
+    rename(Category = Feeding_group),
+  
+  Sample_final_all_nicu %>%
+    count(Country_2, name = "n") %>%
+    ungroup() %>%
+    mutate(Variable = "Country", Percent = round(n / sum(n) * 100, 1)) %>%
+    rename(Category = Country_2),
+
+  Sample_final_all_nicu %>%
+    count(Hypothermia_cat, name = "n") %>%
+    ungroup() %>%
+    mutate(Variable = "Hypothermia", Percent = round(n / sum(n) * 100, 1)) %>%
+    rename(Category = Hypothermia_cat),
+
+  Sample_final_all_nicu %>%
+    count(Hypoglycaemia_cat, name = "n") %>%
+    ungroup() %>%
+    mutate(Variable = "Hypoglycaemia", Percent = round(n / sum(n) * 100, 1)) %>%
+    rename(Category = Hypoglycaemia_cat),
+
+  Sample_final_all_nicu %>%
+    count(Hyperbilirubinaemia_cat, name = "n") %>%
+    ungroup() %>%
+    mutate(Variable = "Hyperbilirubinaemia", Percent = round(n / sum(n) * 100, 1)) %>%
+    rename(Category = Hyperbilirubinaemia_cat)) %>%
+  select(Variable, Category, n, Percent)
+
+Categorical6_summary_table2
+ft15 <- flextable(Categorical6_summary_table2)
+ft15 <- autofit(ft15)
+ft15
+
+# No missing sample (multivariable model)
+# Numerical
+Summary7 <- Sample_no_missing %>%
+  ungroup() %>% 
+  summarise(
+    mean_ga = mean(Gest_age, na.rm = TRUE), # GA
+    sd_ga = sd(Gest_age, na.rm = TRUE),
+    mean_weight = mean(Birth_weight_g, na.rm = TRUE), # Birth weight
+    sd_weight = sd(Birth_weight_g, na.rm = TRUE),
+    mean_los = mean(LOS, na.rm = TRUE), # LOS
+    sd_los = sd(LOS, na.rm = TRUE),
+    mean_mat_age = mean(Maternal_age, na.rm = TRUE), # maternal age
+    sd_mat_age = sd(Maternal_age, na.rm = TRUE),
+    Nicu_count = sum(admission_neo_n == 1), # NICU
+    Nicu_percent = (sum(admission_neo_n == 1) / n()) * 100)
+
+Summary7_table <- tibble(
+  Variable = c("Gestational age (days)", "Birth weight (g)", "LOS (hours)", "Maternal age (years)"),
+  Mean = round(c(Summary7$mean_ga, Summary7$mean_weight, Summary7$mean_los, Summary7$mean_mat_age), 1),
+  SD = round(c(Summary7$sd_ga, Summary7$sd_weight, Summary7$sd_los, Summary7$sd_mat_age), 1))
+
+n_total <- nrow(Sample_no_missing)
+Summary7_table <- Summary7_table %>% 
+  mutate(n = n_total)
+
+Summary7_table
+ft16 <- flextable(Summary7_table)
+ft16 <- autofit(ft16)
+ft16   
+
+# Categorical (Mode of delivery, parity, Feeding type, Country, HHH)
+Categorical7_summary_table2 <- bind_rows(
+  Sample_no_missing %>%
+    count(Birth_mode, name = "n") %>%
+    ungroup() %>%
+    mutate(Variable = "Birth Mode", Percent = round(n / sum(n) * 100, 1)) %>%
+    rename(Category = Birth_mode),
+  
+  Sample_no_missing %>%
+    count(RF_parity, name = "n") %>%
+    ungroup() %>%
+    mutate(Variable = "Parity", Percent = round(n / sum(n) * 100, 1)) %>%
+    rename(Category = RF_parity),
+  
+  Sample_no_missing %>%
+    count(Feeding_group, name = "n") %>%
+    ungroup() %>%
+    mutate(Variable = "Feeding Type", Percent = round(n / sum(n) * 100, 1)) %>%
+    rename(Category = Feeding_group),
+  
+  Sample_no_missing %>%
+    count(Country_2, name = "n") %>%
+    ungroup() %>%
+    mutate(Variable = "Country", Percent = round(n / sum(n) * 100, 1)) %>%
+    rename(Category = Country_2),
+
+  Sample_no_missing %>%
+    count(Hypothermia_cat, name = "n") %>%
+    ungroup() %>%
+    mutate(Variable = "Hypothermia", Percent = round(n / sum(n) * 100, 1)) %>%
+    rename(Category = Hypothermia_cat),
+
+  Sample_no_missing %>%
+    count(Hypoglycaemia_cat, name = "n") %>%
+    ungroup() %>%
+    mutate(Variable = "Hypoglycaemia", Percent = round(n / sum(n) * 100, 1)) %>%
+    rename(Category = Hypoglycaemia_cat),
+
+  Sample_no_missing %>%
+    count(Hyperbilirubinaemia_cat, name = "n") %>%
+    ungroup() %>%
+    mutate(Variable = "Hyperbilirubinaemia", Percent = round(n / sum(n) * 100, 1)) %>%
+    rename(Category = Hyperbilirubinaemia_cat)) %>%
+  select(Variable, Category, n, Percent)
+
+Categorical7_summary_table2
+ft17 <- flextable(Categorical7_summary_table2)
+ft17 <- autofit(ft17)
+ft17
+
+# NICU admission
+Table_nomissing_nicu_all <- tibble("NICU admission" = c("Yes", "No"),
+                     n = c(Summary7$Nicu_count, n_total - Summary7$Nicu_count),
+                     percent = round(c(Summary7$Nicu_percent, 100 - Summary7$Nicu_percent), 1))
+
+ft18 <- flextable(Table_nomissing_nicu_all)
+ft18 <- autofit(ft18)
+ft18
 
 ## Inferential Analysis
 # 1. Logistic regression --------------------------------------------------
