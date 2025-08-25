@@ -673,7 +673,28 @@ Newborn_group2_c <- Newborn_group2_c %>%
   mutate(RF_parity = factor(RF_parity,
                             levels = c("Primi", "Multi")))
 
-# 3.4.8.2 Maternal age ----------------------------------------------------
+## => Merging data set PAT_info (mother's age, gender, origin)
+
+# 3.4.8.2 Gender Newborn ---------------------------------------------------------
+
+Child_data <- left_join(Sample3, Pat_info, by = c("patient_id_child" = "patient_id", "case_id_child" = "case_id"), relationship = "many-to-many") %>% 
+  select(patient_id_child, case_id_child, PAT_GENDER) %>%
+  distinct(patient_id_child, case_id_child, .keep_all = TRUE) %>% 
+  rename(child_gender = PAT_GENDER)
+table(is.na(Child_data$child_gender)) # no 
+
+# Merge together with samples
+## Whole sample
+Sample3 <- left_join(Sample3, Child_data, by = c("patient_id_child", "case_id_child"))
+
+## Group 1
+Newborn_group1_c <- left_join(Newborn_group1_c, Child_data, by = c("patient_id_child", "case_id_child"))
+
+## Group 2
+Newborn_group2_c <- left_join(Newborn_group2_c, Child_data, by = c("patient_id_child", "case_id_child"))
+
+
+# 3.4.8.3 Maternal age ----------------------------------------------------
 Mother_data <- left_join(Sample3, Pat_info, by = c("patient_id_mother" = "patient_id", "case_id_mother" = "case_id"), relationship = "many-to-many") %>% 
   select(patient_id_mother, case_id_mother, PAT_BIRTH_DATE, CBIS_BIRTH_DATE_TS, PAT_CITIZENSHIP_COUNTRY) # %>% 
   # distinct(patient_id_mother, .keep_all = TRUE)
@@ -722,9 +743,9 @@ summary(Newborn_group2_c$Maternal_age)
 Newborn_group2_c <- Newborn_group2_c %>%
   filter(Maternal_age > 18) # - n= 2, 1940
 
-rm(Mother_data, Parity)
+rm(Child_data, Mother_data, Parity) 
 
-# 3.4.8.3 Origin --------------------------------------------------
+# 3.4.8.4 Origin --------------------------------------------------
 ## From Luisa 
 Countries_FOS <- readxl::read_excel( "I:/Verwaltung/MaNtiS/01_Rohdaten/FOS_countries_categories.xlsx")
 Countries_FOS <- janitor::clean_names(Countries_FOS) ## to clean column names
@@ -751,39 +772,39 @@ Countries2b <- Countries2 %>%
     kontinent_continent_continente == 5 ~ "Oceania",
     TRUE ~ "Unknown")) # when NA then unknown
 
+Countries2c <- Countries2b %>%
+  mutate(Country_2 = case_when(
+    Country == "Switzerland" ~ "Switzerland",
+    Country == "Europe" ~ "Europe",
+    Country == "Unknown" ~ "Non_Europe",  # Unknown to Non_Europe
+    TRUE ~ "Non_Europe")) %>%
+  mutate(Country_2 = factor(Country_2, 
+                            levels = c("Switzerland", "Europe", "Non_Europe")))  
+
 # Combine with Samples
 ## Whole sample
-Sample3<- left_join(Sample3, Countries2b, by = "PAT_CITIZENSHIP_COUNTRY") %>% 
+Sample3<- left_join(Sample3, Countries2c, by = "PAT_CITIZENSHIP_COUNTRY") %>% 
   select(- PAT_CITIZENSHIP_COUNTRY, - pat_citizenship_country_new, -landercode_bfs_code_des_pays_ofs_codice_del_paese_ust, 
-         -iso2, -iso3, -region_region_regione, - kontinent_continent_continente) %>% 
-  mutate(Country = factor(Country, levels = c("Switzerland", "Europe", "Africa", "America", "Asia", "Oceania", "Unknown")))
+         -iso2, -iso3, -region_region_regione, - kontinent_continent_continente, - Country) %>% 
+  mutate(Country_2 = factor(Country_2, levels = c("Switzerland", "Europe", "Non_Europe", "Unknown")))
   
 ## Group 1
-Newborn_group1_c <- left_join(Newborn_group1_c, Countries2b, by = "PAT_CITIZENSHIP_COUNTRY") %>% 
+Newborn_group1_c <- left_join(Newborn_group1_c, Countries2c, by = "PAT_CITIZENSHIP_COUNTRY") %>% 
   select(- PAT_CITIZENSHIP_COUNTRY, - pat_citizenship_country_new, -landercode_bfs_code_des_pays_ofs_codice_del_paese_ust, 
-         -iso2, -iso3, -region_region_regione, - kontinent_continent_continente) %>% 
-  mutate(Country = factor(Country, levels = c("Switzerland", "Europe", "Africa", "America", "Asia", "Oceania", "Unknown")))
+         -iso2, -iso3, -region_region_regione, - kontinent_continent_continente, - Country) %>% 
+  mutate(Country_2 = factor(Country_2, levels = c("Switzerland", "Europe", "Non_Europe", "Unknown")))
 
-table(Newborn_group1_c$Country)
-# Africa     America      Asia      Europe    Oceania  Switzerland  Unknown 
-# 131         105         249        1752     8        1695         10 
-round(prop.table(table(as.factor(Newborn_group1_c$Country))) * 100, 1)
-# Africa     America        Asia      Europe     Oceania Switzerland     Unknown 
-# 3.3         2.7         6.3        44.4         0.2        42.9         0.3 
+table(Newborn_group1_c$Country_2)
+round(prop.table(table(as.factor(Newborn_group1_c$Country_2))) * 100, 1)
 
 ## Group 2
-Newborn_group2_c <- left_join(Newborn_group2_c, Countries2b, by = "PAT_CITIZENSHIP_COUNTRY") %>% 
+Newborn_group2_c <- left_join(Newborn_group2_c, Countries2c, by = "PAT_CITIZENSHIP_COUNTRY") %>% 
   select(- PAT_CITIZENSHIP_COUNTRY, - pat_citizenship_country_new, -landercode_bfs_code_des_pays_ofs_codice_del_paese_ust, 
-         -iso2, -iso3, -region_region_regione, - kontinent_continent_continente) %>% 
-  mutate(Country = factor(Country, levels = c("Switzerland", "Europe", "Africa", "America", "Asia", "Oceania", "Unknown")))
+         -iso2, -iso3, -region_region_regione, - kontinent_continent_continente, - Country) %>% 
+  mutate(Country_2 = factor(Country_2, levels = c("Switzerland", "Europe", "Non_Europe", "Unknown")))
 
-table(Newborn_group2_c$Country)
-# Africa     America        Asia      Europe     Oceania Switzerland     Unknown 
-# 95          57         196         797           4         790           3 
-
-round(prop.table(table(as.factor(Newborn_group2_c$Country))) * 100, 1)
-# Africa     America        Asia      Europe     Oceania Switzerland     Unknown 
-# 4.9         2.9        10.1        41.0         0.2        40.7         0.2
+table(Newborn_group2_c$Country_2)
+round(prop.table(table(as.factor(Newborn_group2_c$Country_2))) * 100, 1)
 
 rm(Countries_FOS, Countries_FOS1, Countries1, Countries2)
 
@@ -4295,6 +4316,7 @@ backward_mod_full <- step(mod_full, direction = "backward")
 backward_mod_full_final <- backward_mod_full
 summary(backward_mod_full_final)
 exp(cbind("Odds ratio" = coef(backward_mod_full_final), confint.default(backward_mod_full_final, level = 0.95)))
+
 
 
 
