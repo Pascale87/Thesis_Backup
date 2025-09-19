@@ -3620,8 +3620,6 @@ ft18
 
 ## Inferential Analysis
 
-## Inferential Analysis
-
 # 1. Logistic regression --------------------------------------------------
 # 1.1 HHH and NICU admission --------------------------------------------
 # -> 1. For each explanatory variable model with all covariates
@@ -3630,13 +3628,13 @@ ft18
 
 # 1.1.1 HYPOTHERMIA - NICU ADMISSION ----------------------------------
 ## unadjusted
-summary(glm(admission_neo_n ~ Hypothermia_cat, data = Sample_Hypotherm, family = binomial))
+summary(glm(admission_neo_n ~ Hypothermia_cat, data = Sample_original, family = binomial))
 #                                 Estimate Std. Error z value Pr(>|z|)    
 # (Intercept)                     -5.2038     0.2006 -25.948  < 2e-16 ***
 # Hypothermia_catMild              0.0834     0.4913   0.170    0.865    
 # Hypothermia_catModerate_Severe   1.8273     0.3304   5.531 3.19e-08 ***
 
-mod_hypot <- glm(admission_neo_n ~ Hypothermia_cat, data = Sample_Hypotherm, family = binomial)
+mod_hypot <- glm(admission_neo_n ~ Hypothermia_cat, data = Sample_original, family = binomial)
 exp(cbind("Odds ratio" = coef(mod_hypot), confint.default(mod_hypot, level = 0.95)))
 #                                Odds ratio       2.5 %       97.5 %
 # (Intercept)                    0.005495713 0.003709511  0.008142007
@@ -3645,7 +3643,7 @@ exp(cbind("Odds ratio" = coef(mod_hypot), confint.default(mod_hypot, level = 0.9
 
 ## adjusted
 summary(glm(admission_neo_n ~ Hypothermia_cat + Gest_age + Birth_mode + Feeding_group + Birth_weight_g + Risk_group + Co_Parity + child_gender + Maternal_age +
-              Country_2, data = Sample_Hypotherm, family = binomial))
+              Country_2, data = Sample_original, family = binomial))
 
 # Coefficients:
 #                                           Estimate Std. Error z value Pr(>|z|)
@@ -3671,7 +3669,7 @@ summary(glm(admission_neo_n ~ Hypothermia_cat + Gest_age + Birth_mode + Feeding_
 
 ## Odds ratios
 mod_hypot2 <- glm(admission_neo_n ~ Hypothermia_cat + Gest_age + Birth_mode + Feeding_group + Birth_weight_g + Risk_group + Co_Parity + child_gender + Maternal_age +
-                    Country_2, data = Sample_Hypotherm, family = binomial)
+                    Country_2, data = Sample_original, family = binomial)
 exp(cbind("Odds ratio" = coef(mod_hypot2), confint.default(mod_hypot2, level = 0.95)))
 #                                           Odds ratio        2.5 %     97.5 %
 # (Intercept)                              0.005897978 4.947217e-08 703.145822
@@ -3694,7 +3692,7 @@ exp(cbind("Odds ratio" = coef(mod_hypot2), confint.default(mod_hypot2, level = 0
 
 ## BACKWARD SELECTION
 mod_full_hypot <- glm(admission_neo_n ~ Hypothermia_cat + Gest_age + Birth_mode + Feeding_group + Birth_weight_g + Risk_group + Co_Parity + child_gender + Maternal_age +
-                            Country_2, data = Sample_Hypotherm, family = binomial)
+                            Country_2, data = Sample_original, family = binomial)
 back_mod_full_hypot <- step(mod_full_hypot, direction = "backward") # The algorithm selects the variable with the lowest AIC after removal - by each step
 
 ## Removed
@@ -3734,14 +3732,14 @@ exp(cbind("Odds ratio" = coef(back_mod_full_hypot), confint(back_mod_full_hypot)
 # Risk_groupWith_RF                       4.161226e+01 1.247650e+01 258.55400989 <--- CI wide
 
 ## Check
-table(Sample_Hypotherm$Feeding_group, Sample_Hypotherm$admission_neo_n)
+table(Sample_original$Feeding_group, Sample_original$admission_neo_n)
 #                               0    1
 # Fully_breastfed            1396    7
 # Partly_breastfed           4317   33
 # Mixed_feeding_no_breastfed   39    4
 # Formula_only                 73    1
 
-table(Sample_Hypotherm$Risk_group, Sample_Hypotherm$admission_neo_n)
+table(Sample_original$Risk_group, Sample_original$admission_neo_n)
 #               0    1
 # Without_RF 3932    2
 # With_RF    1893   43
@@ -3757,157 +3755,265 @@ table(Sample_Hypotherm$Risk_group, Sample_Hypotherm$admission_neo_n)
 
 
 # 1.1.2 HYPOGLYCAEMIA - NICU ADMISSION ------------------------------------
-## unadjusted
-summary(glm(admission_neo_n ~ Hypoglycaemia_cat, data = Sample_Hypoglyc, family = binomial))
-#                             Estimate Std. Error z value Pr(>|z|)    
-# (Intercept)                 -4.6657     0.2437 -19.147   <2e-16 ***
-# Hypoglycaemia_catMild      -14.9004   969.6567  -0.015    0.988    
-# Hypoglycaemia_catModerate  -14.9004  2776.6742  -0.005    0.996    
-# Hypoglycaemia_catSevere      3.7212     0.3982   9.344   <2e-16 ***
+## unadjusted with no measurement excluded (old)
+# summary(glm(admission_neo_n ~ Hypoglycaemia_cat, data = Sample_Hypoglyc, family = binomial))
+# #                             Estimate Std. Error z value Pr(>|z|)    
+# # (Intercept)                 -4.6657     0.2437 -19.147   <2e-16 ***
+# # Hypoglycaemia_catMild      -14.9004   969.6567  -0.015    0.988    
+# # Hypoglycaemia_catModerate  -14.9004  2776.6742  -0.005    0.996    
+# # Hypoglycaemia_catSevere      3.7212     0.3982   9.344   <2e-16 ***
+# 
+# mod_hypoglyc <- glm(admission_neo_n ~ Hypoglycaemia_cat, data = Sample_Hypoglyc, family = binomial)
+# exp(cbind("Odds ratio" = coef(mod_hypoglyc), confint.default(mod_hypoglyc, level = 0.95)))
+# #                           Odds ratio        2.5 %      97.5 %
+# # (Intercept)               9.413068e-03  0.005838686  0.01517565
+# # Hypoglycaemia_catMild     3.379350e-07  0.000000000         Inf
+# # Hypoglycaemia_catModerate 3.379350e-07  0.000000000         Inf
+# # Hypoglycaemia_catSevere   4.131373e+01 18.928846831 90.17051747
 
-mod_hypoglyc <- glm(admission_neo_n ~ Hypoglycaemia_cat, data = Sample_Hypoglyc, family = binomial)
+# unadjusted with recoding
+mod_hypoglyc <- glm(admission_neo_n ~ Hypoglycaemia_cat, data = Sample_original, family = binomial)
+summary(mod_hypoglyc)
+# Coefficients:
+#                               Estimate Std. Error z value Pr(>|z|)    
+# (Intercept)                 -5.2056     0.1801 -28.904   <2e-16 ***
+# Hypoglycaemia_catMild      -13.3605   588.1265  -0.023    0.982    
+# Hypoglycaemia_catModerate  -13.3605  1684.1381  -0.008    0.994    
+# Hypoglycaemia_catSevere      4.2611     0.3628  11.744   <2e-16 ***
+
 exp(cbind("Odds ratio" = coef(mod_hypoglyc), confint.default(mod_hypoglyc, level = 0.95)))
-#                           Odds ratio        2.5 %      97.5 %
-# (Intercept)               9.413068e-03  0.005838686  0.01517565
-# Hypoglycaemia_catMild     3.379350e-07  0.000000000         Inf
-# Hypoglycaemia_catModerate 3.379350e-07  0.000000000         Inf
-# Hypoglycaemia_catSevere   4.131373e+01 18.928846831 90.17051747
+#                             Odds ratio        2.5 %       97.5 %
+# (Intercept)               5.485755e-03  0.003854227 7.807922e-03
+# Hypoglycaemia_catMild     1.576241e-06  0.000000000          Inf
+# Hypoglycaemia_catModerate 1.576241e-06  0.000000000          Inf
+# Hypoglycaemia_catSevere   7.089068e+01 34.813898642 1.443529e+02
 
 
-## adjusted
-summary(glm(admission_neo_n ~ Hypoglycaemia_cat + Gest_age + Birth_mode + Feeding_group + Birth_weight_g + Risk_group + Co_Parity + child_gender + Maternal_age +
-              Country_2, data = Sample_Hypoglyc, family = binomial))
+# ## adjusted with no measurement excluded (old)
+# mod_hypoglyc2 <- glm(admission_neo_n ~ Hypoglycaemia_cat + Gest_age + Birth_mode + Feeding_group + Birth_weight_g + Risk_group + Co_Parity + child_gender + Maternal_age +
+#                        Country_2, data = Sample_Hypoglyc, family = binomial)
+# summary(mod_hypoglyc2)
+# 
+# # Coefficients:
+# #                                           Estimate Std. Error z value Pr(>|z|)    
+# # (Intercept)                             -4.320e+00  7.572e+00  -0.571  0.56832    
+# # Hypoglycaemia_catMild                   -1.526e+01  9.046e+02  -0.017  0.98654    
+# # Hypoglycaemia_catModerate               -1.559e+01  2.712e+03  -0.006  0.99541    
+# # Hypoglycaemia_catSevere                  3.336e+00  4.594e-01   7.262 3.82e-13 ***
+# # Gest_age                                -9.114e-03  2.719e-02  -0.335  0.73744    
+# # Birth_modeInstrumental_vaginal           5.730e-01  6.564e-01   0.873  0.38271    
+# # Birth_modeC-section_pl                   3.475e-01  6.546e-01   0.531  0.59548    
+# # Birth_modeC-section_upl                  1.605e+00  5.383e-01   2.982  0.00286 ** 
+# # Feeding_groupPartly_breastfed           -2.681e-01  1.064e+00  -0.252  0.80115    
+# # Feeding_groupMixed_feeding_no_breastfed  1.927e+00  1.429e+00   1.348  0.17764    
+# # Feeding_groupFormula_only                1.608e+00  1.496e+00   1.075  0.28238    
+# # Birth_weight_g                          -4.487e-05  4.337e-04  -0.103  0.91760    
+# # Risk_groupWith_RF                        2.562e+00  1.042e+00   2.459  0.01395 *  
+# # Co_Parity                               -1.048e-01  2.618e-01  -0.400  0.68899    
+# # child_genderweiblich                     1.369e-01  4.092e-01   0.335  0.73797    
+# # Maternal_age                             1.166e-03  4.442e-02   0.026  0.97906    
+# # Country_2Europe                         -2.684e-01  4.534e-01  -0.592  0.55381    
+# # Country_2Non_Europe                     -6.466e-01  6.073e-01  -1.065  0.28699  
+# 
+# # AIC: 255.92
+# 
+# ## Odds ratios
+# exp(cbind("Odds ratio" = coef(mod_hypoglyc2), confint.default(mod_hypoglyc2, level = 0.95)))
+# #                                         Odds ratio        2.5 %       97.5 %
+# # (Intercept)                             1.329592e-02 4.765099e-09 37099.236915
+# # Hypoglycaemia_catMild                   2.349593e-07 0.000000e+00          Inf
+# # Hypoglycaemia_catModerate               1.691175e-07 0.000000e+00          Inf
+# # Hypoglycaemia_catSevere                 2.810214e+01 1.142169e+01    69.143064
+# # Gest_age                                9.909275e-01 9.395102e-01     1.045159
+# # Birth_modeInstrumental_vaginal          1.773585e+00 4.898935e-01     6.420996
+# # Birth_modeC-section_pl                  1.415591e+00 3.923985e-01     5.106794
+# # Birth_modeC-section_upl                 4.980213e+00 1.733890e+00    14.304551
+# # Feeding_groupPartly_breastfed           7.648350e-01 9.494657e-02     6.161071
+# # Feeding_groupMixed_feeding_no_breastfed 6.865975e+00 4.170639e-01   113.032110
+# # Feeding_groupFormula_only               4.992039e+00 2.661635e-01    93.628363
+# # Birth_weight_g                          9.999551e-01 9.991054e-01     1.000806
+# # Risk_groupWith_RF                       1.296529e+01 1.681394e+00    99.975854
+# # Co_Parity                               9.005080e-01 5.390213e-01     1.504420
+# # child_genderweiblich                    1.146721e+00 5.141845e-01     2.557387
+# # Maternal_age                            1.001166e+00 9.176936e-01     1.092232
+# # Country_2Europe                         7.645683e-01 3.143986e-01     1.859311
+# # Country_2Non_Europe                     5.238323e-01 1.593274e-01     1.722242
 
+# ## BACKWARD SELECTION (with no measurement excluded)
+# mod_full_hypogl <- glm(admission_neo_n ~ Hypoglycaemia_cat + Gest_age + Birth_mode + Feeding_group + Birth_weight_g + Risk_group + Co_Parity + child_gender + Maternal_age +
+#                          Country_2, data = Sample_Hypoglyc, family = binomial)
+# back_mod_full_hypogl <- step(mod_full_hypogl, direction = "backward")
+# 
+# ## Removed
+# # Country_2 - AIC: 255.92 -> 253.15
+# # Birth_weight_g - AIC: 253.15 -> 251.15
+# # Maternal_age - AIC: 251.15 -> 249.17
+# # child_gender - AIC: 249.17 -> 247.31
+# # Gest_age - AIC: 247.31 -> 245.56
+# # Co_Parity - AIC: 245.56 -> 243.83
+# # -> best model: admission_neo_n ~ Hypoglycaemia_cat + Birth_mode + Feeding_group + Risk_group, family = binomial, data = Sample_Hypoglyc
+# 
+# # Final model
+# summary(back_mod_full_hypogl)
+# # Coefficients:
+# #                                           Estimate Std. Error z value Pr(>|z|)    
+# # (Intercept)                               -7.1255     1.3320  -5.349 8.82e-08 ***
+# # Hypoglycaemia_catMild                    -15.2176   907.4456  -0.017  0.98662    
+# # Hypoglycaemia_catModerate                -15.6857  2696.8864  -0.006  0.99536    
+# # Hypoglycaemia_catSevere                    3.2830     0.4435   7.402 1.35e-13 ***
+# # Birth_modeInstrumental_vaginal             0.7161     0.6249   1.146  0.25177    
+# # Birth_modeC-section_pl                     0.3821     0.5959   0.641  0.52141    
+# # Birth_modeC-section_upl                    1.5896     0.5128   3.100  0.00194 ** 
+# # Feeding_groupPartly_breastfed             -0.2751     1.0606  -0.259  0.79536    
+# # Feeding_groupMixed_feeding_no_breastfed    1.8746     1.3950   1.344  0.17902 <--- to keep it or not? trend p= 0.179, OR= 6.5, AIC would only increase by 0.29 
+# # Feeding_groupFormula_only                  1.6215     1.4874   1.090  0.27562    
+# # Risk_groupWith_RF                          2.5052     1.0397   2.410  0.01597 *
+# 
+# # Odds Ratios
+# exp(cbind("Odds ratio" = coef(back_mod_full_hypogl), confint(back_mod_full_hypogl)))
+# #                                           Odds ratio         2.5 %       97.5 %
+# # (Intercept)                             8.043080e-04  2.476515e-05 6.299225e-03
+# # Hypoglycaemia_catMild                   2.460902e-07 1.178643e-140 3.954590e+09
+# # Hypoglycaemia_catModerate               1.540959e-07            NA 2.609388e+65
+# # Hypoglycaemia_catSevere                 2.665454e+01  1.113228e+01 6.422995e+01 <---
+# # Birth_modeInstrumental_vaginal          2.046529e+00  5.613857e-01 6.830616e+00
+# # Birth_modeC-section_pl                  1.465314e+00  4.338871e-01 4.694300e+00
+# # Birth_modeC-section_upl                 4.901668e+00  1.818307e+00 1.394867e+01 <---
+# # Feeding_groupPartly_breastfed           7.595264e-01  1.414664e-01 1.410810e+01
+# # Feeding_groupMixed_feeding_no_breastfed 6.518333e+00  4.766733e-01 1.722915e+02 
+# # Feeding_groupFormula_only               5.060918e+00  1.817620e-01 1.411274e+02
+# # Risk_groupWith_RF                       1.224657e+01  2.448698e+00 2.231450e+02 <---
+# 
+# ## WITHOUT FEDDING GROUP
+# summary(glm(admission_neo_n ~ Hypoglycaemia_cat + Birth_mode + Risk_group, 
+#             data = Sample_Hypoglyc, family = binomial))
+# # Coefficients:
+# #                                   Estimate Std. Error z value Pr(>|z|)    
+# # (Intercept)                      -7.3150     1.0445  -7.004 2.49e-12 ***
+# # Hypoglycaemia_catMild           -15.1337   930.0281  -0.016  0.98702    
+# # Hypoglycaemia_catModerate       -15.6400  2701.4178  -0.006  0.99538    
+# # Hypoglycaemia_catSevere           3.3443     0.4253   7.863 3.76e-15 ***
+# # Birth_modeInstrumental_vaginal    0.6392     0.6228   1.026  0.30477    
+# # Birth_modeC-section_pl            0.5153     0.5721   0.901  0.36771    
+# # Birth_modeC-section_upl           1.5709     0.5022   3.128  0.00176 ** 
+# # Risk_groupWith_RF                 2.5166     1.0298   2.444  0.01453 *  
+# 
+# mod_final_without_feeding <- glm(admission_neo_n ~ Hypoglycaemia_cat + Birth_mode + Risk_group, 
+#                            data = Sample_Hypoglyc, family = binomial)
+# exp(cbind("Odds ratio" = coef(mod_final_without_feeding), confint(mod_final_without_feeding)))
+# #                                 Odds ratio         2.5 %       97.5 %
+# # (Intercept)                    6.654718e-04  3.627365e-05 3.315530e-03
+# # Hypoglycaemia_catMild          2.676164e-07 1.116729e-130 2.854101e+12
+# # Hypoglycaemia_catModerate      1.612980e-07            NA 9.042760e+66
+# # Hypoglycaemia_catSevere        2.833997e+01  1.226403e+01 6.580401e+01
+# # Birth_modeInstrumental_vaginal 1.894903e+00  5.205412e-01 6.275357e+00
+# # Birth_modeC-section_pl         1.674178e+00  5.222186e-01 5.146512e+00
+# # Birth_modeC-section_upl        4.810904e+00  1.821763e+00 1.339573e+01 <---
+# # Risk_groupWith_RF              1.238669e+01  2.541260e+00 2.233805e+02 <---
+# 
+# ## Check
+# table(Sample_Hypoglyc$Risk_group, Sample_Hypoglyc$admission_neo_n)
+# #              0    1
+# # Without_RF  786    1
+# # With_RF    1194   30
+
+
+## adjusted with recoding
+mod_hypoglyc3 <- glm(admission_neo_n ~ Hypoglycaemia_cat + Gest_age + Birth_mode + Feeding_group + Birth_weight_g + Risk_group + Co_Parity + child_gender + Maternal_age +
+                       Country_2, data = Sample_original, family = binomial)
+summary(mod_hypoglyc3)
 # Coefficients:
 #                                           Estimate Std. Error z value Pr(>|z|)    
-# (Intercept)                             -4.320e+00  7.572e+00  -0.571  0.56832    
-# Hypoglycaemia_catMild                   -1.526e+01  9.046e+02  -0.017  0.98654    
-# Hypoglycaemia_catModerate               -1.559e+01  2.712e+03  -0.006  0.99541    
-# Hypoglycaemia_catSevere                  3.336e+00  4.594e-01   7.262 3.82e-13 ***
-# Gest_age                                -9.114e-03  2.719e-02  -0.335  0.73744    
-# Birth_modeInstrumental_vaginal           5.730e-01  6.564e-01   0.873  0.38271    
-# Birth_modeC-section_pl                   3.475e-01  6.546e-01   0.531  0.59548    
-# Birth_modeC-section_upl                  1.605e+00  5.383e-01   2.982  0.00286 ** 
-# Feeding_groupPartly_breastfed           -2.681e-01  1.064e+00  -0.252  0.80115    
-# Feeding_groupMixed_feeding_no_breastfed  1.927e+00  1.429e+00   1.348  0.17764    
-# Feeding_groupFormula_only                1.608e+00  1.496e+00   1.075  0.28238    
-# Birth_weight_g                          -4.487e-05  4.337e-04  -0.103  0.91760    
-# Risk_groupWith_RF                        2.562e+00  1.042e+00   2.459  0.01395 *  
-# Co_Parity                               -1.048e-01  2.618e-01  -0.400  0.68899    
-# child_genderweiblich                     1.369e-01  4.092e-01   0.335  0.73797    
-# Maternal_age                             1.166e-03  4.442e-02   0.026  0.97906    
-# Country_2Europe                         -2.684e-01  4.534e-01  -0.592  0.55381    
-# Country_2Non_Europe                     -6.466e-01  6.073e-01  -1.065  0.28699  
-
-# AIC: 255.92
+# (Intercept)                             -7.695e+00  6.200e+00  -1.241   0.2145    
+# Hypoglycaemia_catMild                   -1.512e+01  9.138e+02  -0.017   0.9868    
+# Hypoglycaemia_catModerate               -1.551e+01  2.722e+03  -0.006   0.9955    
+# Hypoglycaemia_catSevere                  3.310e+00  4.138e-01   7.998 1.27e-15 ***
+# Gest_age                                 1.100e-03  2.231e-02   0.049   0.9607    
+# Birth_modeInstrumental_vaginal           7.865e-01  4.769e-01   1.649   0.0991 .  
+# Birth_modeC-section_pl                   2.468e-01  5.208e-01   0.474   0.6356    
+# Birth_modeC-section_upl                  1.125e+00  4.433e-01   2.537   0.0112 *  
+# Feeding_groupPartly_breastfed           -1.014e+00  4.660e-01  -2.176   0.0295 *  
+# Feeding_groupMixed_feeding_no_breastfed  1.496e+00  8.285e-01   1.806   0.0709 .  
+# Feeding_groupFormula_only                3.744e-01  1.124e+00   0.333   0.7390    
+# Birth_weight_g                           2.270e-04  3.389e-04   0.670   0.5028    
+# Risk_groupWith_RF                        3.693e+00  7.421e-01   4.976 6.48e-07 ***
+# Co_Parity                               -4.133e-02  2.106e-01  -0.196   0.8444    
+# child_genderweiblich                     2.242e-01  3.263e-01   0.687   0.4919    
+# Maternal_age                            -2.337e-02  3.439e-02  -0.680   0.4968    
+# Country_2Europe                         -1.625e-01  3.550e-01  -0.458   0.6471    
+# Country_2Non_Europe                     -3.861e-01  4.896e-01  -0.789   0.4304  
+# AIC: 402.46
 
 ## Odds ratios
-mod_hypoglyc2 <- glm(admission_neo_n ~ Hypoglycaemia_cat + Gest_age + Birth_mode + Feeding_group + Birth_weight_g + Risk_group + Co_Parity + child_gender + Maternal_age +
-                    Country_2, data = Sample_Hypoglyc, family = binomial)
-exp(cbind("Odds ratio" = coef(mod_hypoglyc2), confint.default(mod_hypoglyc2, level = 0.95)))
-#                                         Odds ratio        2.5 %       97.5 %
-# (Intercept)                             1.329592e-02 4.765099e-09 37099.236915
-# Hypoglycaemia_catMild                   2.349593e-07 0.000000e+00          Inf
-# Hypoglycaemia_catModerate               1.691175e-07 0.000000e+00          Inf
-# Hypoglycaemia_catSevere                 2.810214e+01 1.142169e+01    69.143064
-# Gest_age                                9.909275e-01 9.395102e-01     1.045159
-# Birth_modeInstrumental_vaginal          1.773585e+00 4.898935e-01     6.420996
-# Birth_modeC-section_pl                  1.415591e+00 3.923985e-01     5.106794
-# Birth_modeC-section_upl                 4.980213e+00 1.733890e+00    14.304551
-# Feeding_groupPartly_breastfed           7.648350e-01 9.494657e-02     6.161071
-# Feeding_groupMixed_feeding_no_breastfed 6.865975e+00 4.170639e-01   113.032110
-# Feeding_groupFormula_only               4.992039e+00 2.661635e-01    93.628363
-# Birth_weight_g                          9.999551e-01 9.991054e-01     1.000806
-# Risk_groupWith_RF                       1.296529e+01 1.681394e+00    99.975854
-# Co_Parity                               9.005080e-01 5.390213e-01     1.504420
-# child_genderweiblich                    1.146721e+00 5.141845e-01     2.557387
-# Maternal_age                            1.001166e+00 9.176936e-01     1.092232
-# Country_2Europe                         7.645683e-01 3.143986e-01     1.859311
-# Country_2Non_Europe                     5.238323e-01 1.593274e-01     1.722242
+exp(cbind("Odds ratio" = coef(mod_hypoglyc3), confint.default(mod_hypoglyc3, level = 0.95)))
+#                                         Odds ratio        2.5 %      97.5 %
+# (Intercept)                             4.549546e-04 2.402204e-09  86.1640752
+# Hypoglycaemia_catMild                   2.719649e-07 0.000000e+00         Inf
+# Hypoglycaemia_catModerate               1.830593e-07 0.000000e+00         Inf
+# Hypoglycaemia_catSevere                 2.737298e+01 1.216438e+01  61.5962238
+# Gest_age                                1.001100e+00 9.582690e-01   1.0458458
+# Birth_modeInstrumental_vaginal          2.195598e+00 8.622481e-01   5.5907954
+# Birth_modeC-section_pl                  1.279902e+00 4.611798e-01   3.5520813
+# Birth_modeC-section_upl                 3.079278e+00 1.291481e+00   7.3419194
+# Feeding_groupPartly_breastfed           3.626851e-01 1.455057e-01   0.9040232
+# Feeding_groupMixed_feeding_no_breastfed 4.464586e+00 8.801631e-01  22.6464084
+# Feeding_groupFormula_only               1.454152e+00 1.607535e-01  13.1540455
+# Birth_weight_g                          1.000227e+00 9.995630e-01   1.0008916
+# Risk_groupWith_RF                       4.016301e+01 9.378813e+00 171.9905603
+# Co_Parity                               9.595080e-01 6.350728e-01   1.4496852
+# child_genderweiblich                    1.251351e+00 6.601739e-01   2.3719181
+# Maternal_age                            9.768978e-01 9.132148e-01   1.0450217
+# Country_2Europe                         8.499798e-01 4.238644e-01   1.7044735
+# Country_2Non_Europe                     6.797292e-01 2.603717e-01   1.7745082
 
-## BACKWARD SELECTION
-mod_full_hypogl <- glm(admission_neo_n ~ Hypoglycaemia_cat + Gest_age + Birth_mode + Feeding_group + Birth_weight_g + Risk_group + Co_Parity + child_gender + Maternal_age +
-                         Country_2, data = Sample_Hypoglyc, family = binomial)
-back_mod_full_hypogl <- step(mod_full_hypogl, direction = "backward")
 
-## Removed
-# Country_2 - AIC: 255.92 -> 253.15
-# Birth_weight_g - AIC: 253.15 -> 251.15
-# Maternal_age - AIC: 251.15 -> 249.17
-# child_gender - AIC: 249.17 -> 247.31
-# Gest_age - AIC: 247.31 -> 245.56
-# Co_Parity - AIC: 245.56 -> 243.83
-# -> best model: admission_neo_n ~ Hypoglycaemia_cat + Birth_mode + Feeding_group + Risk_group, family = binomial, data = Sample_Hypoglyc
+## BACKWARD SELECTION (with recoding)
+mod_full_hypogl2 <- glm(admission_neo_n ~ Hypoglycaemia_cat + Gest_age + Birth_mode + Feeding_group + Birth_weight_g + Risk_group + Co_Parity + child_gender + Maternal_age +
+                         Country_2, data = Sample_original, family = binomial)
+back_mod_full_hypogl2 <- step(mod_full_hypogl2, direction = "backward")
+
+# Country_2 - AIC: 402.46 -> 399.13
+# Gest_age - AIC: 399.13 -> 397.13
+# Co_Parity - AIC: 397.13 -> 395.22
+# Maternal_age - AIC: 395.22 -> 393.68
+# Birth_weight_g - AIC: 393.68 -> 392.18
+# child_gender -AIC: 392.18 -> 390.63
+# best fit: birth_mode, feeding_group, Hypoglycaemia_cat, risk_group
 
 # Final model
-summary(back_mod_full_hypogl)
+summary(back_mod_full_hypogl2)
 # Coefficients:
 #                                           Estimate Std. Error z value Pr(>|z|)    
-# (Intercept)                               -7.1255     1.3320  -5.349 8.82e-08 ***
-# Hypoglycaemia_catMild                    -15.2176   907.4456  -0.017  0.98662    
-# Hypoglycaemia_catModerate                -15.6857  2696.8864  -0.006  0.99536    
-# Hypoglycaemia_catSevere                    3.2830     0.4435   7.402 1.35e-13 ***
-# Birth_modeInstrumental_vaginal             0.7161     0.6249   1.146  0.25177    
-# Birth_modeC-section_pl                     0.3821     0.5959   0.641  0.52141    
-# Birth_modeC-section_upl                    1.5896     0.5128   3.100  0.00194 ** 
-# Feeding_groupPartly_breastfed             -0.2751     1.0606  -0.259  0.79536    
-# Feeding_groupMixed_feeding_no_breastfed    1.8746     1.3950   1.344  0.17902 <--- to keep it or not? trend p= 0.179, OR= 6.5, AIC would only increase by 0.29 
-# Feeding_groupFormula_only                  1.6215     1.4874   1.090  0.27562    
-# Risk_groupWith_RF                          2.5052     1.0397   2.410  0.01597 *
+# (Intercept)                               -7.4059     0.7583  -9.767  < 2e-16 ***
+# Hypoglycaemia_catMild                    -15.1114   919.8580  -0.016  0.98689    
+# Hypoglycaemia_catModerate                -15.5236  2722.1931  -0.006  0.99545    
+# Hypoglycaemia_catSevere                    3.2594     0.4036   8.076 6.70e-16 ***
+# Birth_modeInstrumental_vaginal             0.8114     0.4545   1.785  0.07423 .  
+# Birth_modeC-section_pl                     0.1897     0.4764   0.398  0.69054    
+# Birth_modeC-section_upl                    1.1063     0.4210   2.628  0.00859 ** 
+# Feeding_groupPartly_breastfed             -0.9898     0.4590  -2.156  0.03106 *  
+# Feeding_groupMixed_feeding_no_breastfed    1.3580     0.8291   1.638  0.10145    
+# Feeding_groupFormula_only                  0.3743     1.1135   0.336  0.73675    
+# Risk_groupWith_RF                          3.6520     0.7412   4.927 8.35e-07 ***
 
-# Odds Ratios
-exp(cbind("Odds ratio" = coef(back_mod_full_hypogl), confint(back_mod_full_hypogl)))
-#                                           Odds ratio         2.5 %       97.5 %
-# (Intercept)                             8.043080e-04  2.476515e-05 6.299225e-03
-# Hypoglycaemia_catMild                   2.460902e-07 1.178643e-140 3.954590e+09
-# Hypoglycaemia_catModerate               1.540959e-07            NA 2.609388e+65
-# Hypoglycaemia_catSevere                 2.665454e+01  1.113228e+01 6.422995e+01 <---
-# Birth_modeInstrumental_vaginal          2.046529e+00  5.613857e-01 6.830616e+00
-# Birth_modeC-section_pl                  1.465314e+00  4.338871e-01 4.694300e+00
-# Birth_modeC-section_upl                 4.901668e+00  1.818307e+00 1.394867e+01 <---
-# Feeding_groupPartly_breastfed           7.595264e-01  1.414664e-01 1.410810e+01
-# Feeding_groupMixed_feeding_no_breastfed 6.518333e+00  4.766733e-01 1.722915e+02 
-# Feeding_groupFormula_only               5.060918e+00  1.817620e-01 1.411274e+02
-# Risk_groupWith_RF                       1.224657e+01  2.448698e+00 2.231450e+02 <---
+## Odds ratios
+exp(cbind("Odds ratio" = coef(back_mod_full_hypogl2), confint.default(back_mod_full_hypogl2, level = 0.95)))
+#                                         Odds ratio        2.5 %       97.5 %
+# (Intercept)                             6.076578e-04 1.374718e-04 2.685991e-03
+# Hypoglycaemia_catMild                   2.736486e-07 0.000000e+00          Inf
+# Hypoglycaemia_catModerate               1.812117e-07 0.000000e+00          Inf
+# Hypoglycaemia_catSevere                 2.603379e+01 1.180317e+01 5.742170e+01
+# Birth_modeInstrumental_vaginal          2.251105e+00 9.236378e-01 5.486429e+00
+# Birth_modeC-section_pl                  1.208847e+00 4.751721e-01 3.075332e+00
+# Birth_modeC-section_upl                 3.023301e+00 1.324665e+00 6.900119e+00
+# Feeding_groupPartly_breastfed           3.716347e-01 1.511391e-01 9.138096e-01
+# Feeding_groupMixed_feeding_no_breastfed 3.888289e+00 7.656317e-01 1.974682e+01
+# Feeding_groupFormula_only               1.453985e+00 1.639633e-01 1.289358e+01
+# Risk_groupWith_RF                       3.855215e+01 9.017946e+00 1.648123e+02
 
-## WITHOUT FEDDING GROUP
-summary(glm(admission_neo_n ~ Hypoglycaemia_cat + Birth_mode + Risk_group, 
-            data = Sample_Hypoglyc, family = binomial))
-# Coefficients:
-#                                   Estimate Std. Error z value Pr(>|z|)    
-# (Intercept)                      -7.3150     1.0445  -7.004 2.49e-12 ***
-# Hypoglycaemia_catMild           -15.1337   930.0281  -0.016  0.98702    
-# Hypoglycaemia_catModerate       -15.6400  2701.4178  -0.006  0.99538    
-# Hypoglycaemia_catSevere           3.3443     0.4253   7.863 3.76e-15 ***
-# Birth_modeInstrumental_vaginal    0.6392     0.6228   1.026  0.30477    
-# Birth_modeC-section_pl            0.5153     0.5721   0.901  0.36771    
-# Birth_modeC-section_upl           1.5709     0.5022   3.128  0.00176 ** 
-# Risk_groupWith_RF                 2.5166     1.0298   2.444  0.01453 *  
 
-mod_final_without_feeding <- glm(admission_neo_n ~ Hypoglycaemia_cat + Birth_mode + Risk_group, 
-                           data = Sample_Hypoglyc, family = binomial)
-exp(cbind("Odds ratio" = coef(mod_final_without_feeding), confint(mod_final_without_feeding)))
-#                                 Odds ratio         2.5 %       97.5 %
-# (Intercept)                    6.654718e-04  3.627365e-05 3.315530e-03
-# Hypoglycaemia_catMild          2.676164e-07 1.116729e-130 2.854101e+12
-# Hypoglycaemia_catModerate      1.612980e-07            NA 9.042760e+66
-# Hypoglycaemia_catSevere        2.833997e+01  1.226403e+01 6.580401e+01
-# Birth_modeInstrumental_vaginal 1.894903e+00  5.205412e-01 6.275357e+00
-# Birth_modeC-section_pl         1.674178e+00  5.222186e-01 5.146512e+00
-# Birth_modeC-section_upl        4.810904e+00  1.821763e+00 1.339573e+01 <---
-# Risk_groupWith_RF              1.238669e+01  2.541260e+00 2.233805e+02 <---
+# Conclusion: Key findings are robust. Hypoglycaemia remains the dominant predictor in both approaches. Similar OR were observed for severe hypoglycaemia (26.7 and 26.0).
 
-## Check
-table(Sample_Hypoglyc$Risk_group, Sample_Hypoglyc$admission_neo_n)
-#              0    1
-# Without_RF  786    1
-# With_RF    1194   30
-
-# Conclusion: In the unadjusted model, only severe hypoglycaemia was associated with an
-# increased risk of NICU admission, while mild and moderate hypoglycaemia showed no effect (ZERO EVENTS).
-# After adjustment for neonatal and maternal covariates, severe hypoglycaemia remained an important predictor.
-# In the final model severe hypoglycaemia, unplanned c-section and predefined neonatal/maternal were associated 
-# with NICU admission. Feeding type was not significant but still a rather important predictor.
 
 
 # 1.1.3 HYPERBILIRUBINAEMIA - NICU ADMISSION ------------------------------
@@ -4766,6 +4872,7 @@ backward_mod_full <- step(mod_full, direction = "backward")
 backward_mod_full_final <- backward_mod_full
 summary(backward_mod_full_final)
 exp(cbind("Odds ratio" = coef(backward_mod_full_final), confint.default(backward_mod_full_final, level = 0.95)))
+
 
 
 
