@@ -1052,6 +1052,23 @@ Sample_Hyperbili <- Sample_original %>%
 Sample_Hyperbili <- Sample_Hyperbili %>%
   mutate(Hyperbilirubinaemia_bi = ifelse(Hyperbilirubinaemia_cat == "Physiological", 0, 1))
 
+
+# Multivariable analyis NICU ~ H/H/H
+Sample_original <- Sample_final_all_c %>%
+  mutate(
+    Hypothermia_cat = factor(Hypothermia_cat,
+                             levels = c("Norm", "Mild", "Moderate_Severe")),
+    Hypoglycaemia_cat = ifelse(Hypoglycaemia_cat == "No_measurement", 
+                               "Normoglycaemic", 
+                               as.character(Hypoglycaemia_cat)),
+    Hyperbilirubinaemia_cat = ifelse(Hyperbilirubinaemia_cat == "No_measurement", 
+                                     "Physiological", 
+                                     as.character(Hyperbilirubinaemia_cat)),
+    Hypoglycaemia_cat = factor(Hypoglycaemia_cat,
+                               levels = c("Normoglycaemic", "Mild", "Moderate", "Severe")),
+    Hyperbilirubinaemia_cat = factor(Hyperbilirubinaemia_cat,
+                                     levels = c("Physiological", "Hyperbilirubinaemia_tcb", "Hyperbilirubinaemia_serum")))
+
 ## 2. Bivariable models for associations between the predictors
 Sample_original <- Sample_original %>%
   mutate(Hypothermia_bi = ifelse(Hypothermia_cat == "Norm", 0, 1),
@@ -4749,6 +4766,7 @@ backward_mod_full <- step(mod_full, direction = "backward")
 backward_mod_full_final <- backward_mod_full
 summary(backward_mod_full_final)
 exp(cbind("Odds ratio" = coef(backward_mod_full_final), confint.default(backward_mod_full_final, level = 0.95)))
+
 
 
 
